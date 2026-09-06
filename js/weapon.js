@@ -11,7 +11,7 @@ export const WEAPONS = {
         name: 'QUYỀN CƯỚC',
         en: 'Fists',
         type: 'melee',
-        damage: 20,
+        damage: 1,
         range: 40,
         fireRate: 260,
         speedModifier: 1.12,
@@ -25,7 +25,7 @@ export const WEAPONS = {
         name: 'TRƯỜNG KIẾM',
         en: 'Long Sword',
         type: 'melee',
-        damage: 25,
+        damage: 3,
         range: 60,
         fireRate: 500,
         speedModifier: 1.05,
@@ -59,7 +59,7 @@ export const WEAPONS = {
         name: 'THIẾT PHIẾN',
         en: 'Iron Fan',
         type: 'boomerang',
-        damage: 20,
+        damage: 2,
         range: 80,
         fireRate: 600,
         speedModifier: 1.04,
@@ -97,7 +97,7 @@ export const WEAPONS = {
         name: 'LONG UYỆT ĐAO',
         en: 'Dragon Crescent Blade',
         type: 'melee',
-        damage: 40,
+        damage: 4,
         range: 70,
         fireRate: 800,
         speedModifier: 0.96,
@@ -145,7 +145,7 @@ export const WEAPONS = {
         name: 'MA THIÊN THƯƠNG',
         en: 'Demon Spear',
         type: 'melee',
-        damage: 30,
+        damage: 3,
         range: 90,
         fireRate: 600,
         speedModifier: 0.98,
@@ -193,7 +193,7 @@ export const WEAPONS = {
         en: 'Lily Bow',
         type: 'ranged',
         ammoType: 'arrows',
-        damage: 35,
+        damage: 3,
         range: 500,
         speed: 21,
         magSize: 20,
@@ -242,7 +242,7 @@ export const WEAPONS = {
         name: 'ZANGETSU',
         en: 'Slaying Moon',
         type: 'melee',
-        damage: 45,
+        damage: 4,
         range: 75,
         fireRate: 600,
         speedModifier: 1.05,
@@ -279,7 +279,7 @@ export const WEAPONS = {
         name: 'ONE FOR ALL',
         en: 'One For All',
         type: 'melee',
-        damage: 50,
+        damage: 5,
         range: 50,
         fireRate: 700,
         speedModifier: 1.08,
@@ -317,7 +317,7 @@ export const WEAPONS = {
         en: 'Copy Ninja Art',
         type: 'ranged',
         ammoType: 'darts',
-        damage: 35,
+        damage: 4,
         range: 150,
         speed: 15,
         count: 3,
@@ -359,7 +359,7 @@ export const WEAPONS = {
         name: 'EXCALIBUR',
         en: 'Sword of Promised Victory',
         type: 'melee',
-        damage: 40,
+        damage: 5,
         range: 70,
         fireRate: 600,
         speedModifier: 1.04,
@@ -397,7 +397,7 @@ export const WEAPONS = {
         en: 'King Treasure',
         type: 'ranged',
         ammoType: 'sword_qi',
-        damage: 30,
+        damage: 4,
         range: 400,
         speed: 16,
         magSize: 25,
@@ -571,11 +571,11 @@ export class Weapon {
                 let color = this.color;
                 if (owner && owner.buffs) {
                     if (owner.buffs.mugetsu > 0) {
-                        dmg = 135; // +200%
+                        dmg = 45; // Buff: Vô Nguyệt
                         getsugaRange = 300;
                         color = '#d500f9';
                     } else if (owner.buffs.bankai > 0) {
-                        dmg = 60; // Getsuga Jujishou
+                        dmg = 20; // Buff: Bankai Getsuga Jujishou
                         getsugaRange = 240;
                         color = '#ff1744';
                     }
@@ -608,7 +608,7 @@ export class Weapon {
             } else if (this.rawKey === 'ONE_FOR_ALL') {
                 let dmg = this.damage;
                 if (owner && owner.buffs && owner.buffs.fullCowling > 0) {
-                    dmg = 65; // +30%
+                    dmg = 20; // Buff: Full Cowling
                 }
                 return [{
                     type: 'melee',
@@ -637,7 +637,7 @@ export class Weapon {
                 if (Math.random() < 0.2) {
                     res.push({
                         type: 'projectile',
-                        damage: 30,
+                        damage: this.damage,
                         speed: 18,
                         range: 200,
                         spread: 0,

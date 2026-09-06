@@ -411,6 +411,8 @@ export class Game {
         this.lastFpsTime = 0;
         this.screenDarkenTimer = 0;
         this.screenFlashTimer = 0;
+        this.lockedTarget = null;
+        this.hitStopTimer = 0;
 
         this.setupInput();
         this.resize();
@@ -490,6 +492,10 @@ export class Game {
         this.lootLayer = new window.PIXI.Container();
         this.worldContainer.addChild(this.lootLayer);
 
+        // Attack Range Indicator Graphics (on the ground under characters)
+        this.rangeIndicatorGraphics = new window.PIXI.Graphics();
+        this.worldContainer.addChild(this.rangeIndicatorGraphics);
+
         this.characterLayer = new window.PIXI.Container();
         this.worldContainer.addChild(this.characterLayer);
 
@@ -499,6 +505,10 @@ export class Game {
         this.skillAimGraphics = new window.PIXI.Graphics();
         this.activeSkillLayer.addChild(this.skillAimGraphics);
         this.worldContainer.addChild(this.activeSkillLayer);
+
+        // Target Lock Reticle Graphics (over characters and skills)
+        this.targetLockGraphics = new window.PIXI.Graphics();
+        this.worldContainer.addChild(this.targetLockGraphics);
 
         this.projectileLayer = new window.PIXI.Container();
         this.projectileGraphics = new window.PIXI.Graphics();
@@ -913,42 +923,111 @@ export class Game {
         if (this.skillAimGraphics) this.skillAimGraphics.clear();
     }
 
-    autoAimNearestTarget(range = 500) {
-        if (!this.player || !this.player.alive) return null;
-        let nearest = null;
-        let minDist = range;
+    updateLockedTarget() {
+        if (!this.player || !this.player.alive) {
+            this.lockedTarget = null;
+            return null;
+        }
 
-        // Prioritize alive enemies
+        const weapon = this.player.inventory.getCurrentWeapon();
+        const baseRange = weapon ? (weapon.range || 60) : 40;
+        // Acquisition range: allows locking target as player approaches
+        const searchRange = weapon?.type === 'ranged' ? Math.max(baseRange + 120, 520) : Math.max(baseRange * 3.0, 320);
+
+        let bestTarget = null;
+        let bestScore = -Infinity;
+
+        // Collect all potential targets: enemies and remote players
+        const candidates = [];
         if (this.enemies) {
             for (let i = 0; i < this.enemies.length; i++) {
-                const enemy = this.enemies[i];
-                if (!enemy || !enemy.alive) continue;
-                const d = distance(this.player.x, this.player.y, enemy.x, enemy.y);
-                if (d < minDist) {
-                    minDist = d;
-                    nearest = enemy;
-                }
+                const e = this.enemies[i];
+                if (e && e.alive) candidates.push(e);
+            }
+        }
+        if (this.remotePlayers) {
+            for (const rp of this.remotePlayers.values()) {
+                if (rp && rp.alive) candidates.push(rp);
             }
         }
 
-        // Secondary: breakable wooden crates if no enemy in range
-        if (!nearest && this.map && this.map.obstacles) {
-            for (let i = 0; i < this.map.obstacles.length; i++) {
-                const obs = this.map.obstacles[i];
-                if (obs && obs.isCrate && obs.alive) {
-                    const d = distance(this.player.x, this.player.y, obs.x, obs.y);
-                    if (d < minDist) {
-                        minDist = d;
-                        nearest = obs;
+        for (let i = 0; i < candidates.length; i++) {
+            const candidate = candidates[i];
+            const dist = distance(this.player.x, this.player.y, candidate.x, candidate.y);
+            if (dist > searchRange) continue;
+
+            const hasLOS = !this.map || typeof this.map.hasLineOfSight !== 'function' ||
+                this.map.hasLineOfSight(this.player.x, this.player.y, candidate.x, candidate.y);
+
+            // Normalized distance: 1 (closest) -> 0 (at searchRange)
+            const distScore = 1 - (dist / searchRange);
+
+            // Normalized HP: 1 (lowest HP) -> 0 (full HP) for finishing low-health foes
+            const maxHp = candidate.maxHealth || 100;
+            const hpRatio = clamp((candidate.health || 0) / maxHp, 0, 1);
+            const hpScore = 1 - hpRatio;
+
+            // Angle difference between player heading and candidate
+            const targetAngle = Math.atan2(candidate.y - this.player.y, candidate.x - this.player.x);
+            let angleDiff = Math.abs(this.player.angle - targetAngle);
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            angleDiff = Math.abs(angleDiff);
+            const angleScore = (Math.cos(angleDiff) + 1) / 2; // 1 in front, 0 behind
+
+            // In-attack-range bonus
+            const inRangeBonus = dist <= (baseRange + (candidate.radius || 20)) ? 0.35 : 0;
+
+            // Target stickiness (avoid rapid hopping)
+            const stickinessBonus = (this.lockedTarget === candidate) ? 0.30 : 0;
+
+            // Line-of-sight multiplier
+            const losMultiplier = hasLOS ? 1.0 : 0.2;
+
+            // Composite Utility Score (utility scoring formula)
+            const score = ((distScore * 0.45) + (hpScore * 0.25) + (angleScore * 0.30) + inRangeBonus + stickinessBonus) * losMultiplier;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestTarget = candidate;
+            }
+        }
+
+        // Secondary fallback: breakable crates if no enemy in range and close by
+        if (!bestTarget && this.map && this.map.crates) {
+            let minCrateDist = baseRange + 30;
+            for (let i = 0; i < this.map.crates.length; i++) {
+                const crate = this.map.crates[i];
+                if (crate && crate.alive) {
+                    const d = distance(this.player.x, this.player.y, crate.centerX, crate.centerY);
+                    if (d < minCrateDist) {
+                        minCrateDist = d;
+                        bestTarget = crate;
                     }
                 }
             }
         }
 
-        if (nearest) {
-            this.player.angle = Math.atan2(nearest.y - this.player.y, nearest.x - this.player.x);
+        this.lockedTarget = bestTarget;
+        return bestTarget;
+    }
+
+    applyHitStop(duration = 70, shake = 4) {
+        this.hitStopTimer = Math.max(this.hitStopTimer, duration);
+        if (this.screenShakeEnabled && shake > 0) {
+            this.camera.addShake(shake);
         }
-        return nearest;
+    }
+
+    autoAimNearestTarget(range = 500) {
+        if (!this.player || !this.player.alive) return null;
+        this.updateLockedTarget();
+        if (this.lockedTarget) {
+            const tx = this.lockedTarget.centerX !== undefined ? this.lockedTarget.centerX : this.lockedTarget.x;
+            const ty = this.lockedTarget.centerY !== undefined ? this.lockedTarget.centerY : this.lockedTarget.y;
+            this.player.angle = Math.atan2(ty - this.player.y, tx - this.player.x);
+            return this.lockedTarget;
+        }
+        return null;
     }
 
     healWithMedicine() {
@@ -1062,6 +1141,8 @@ export class Game {
         this.airdropTimer = 35000;
         this.playerZoneTimer = 0;
         this.particles.clear();
+        this.lockedTarget = null;
+        this.hitStopTimer = 0;
         this.safeZone = new SafeZone();
         if (this.isRoomMode) {
             this.safeZone.radius = 999999;
@@ -1234,6 +1315,18 @@ export class Game {
         const weapon = this.player.inventory.getCurrentWeapon();
         if (!weapon) return;
 
+        // Auto Lock-on aim towards locked target
+        this.updateLockedTarget();
+        if (this.lockedTarget && (this.lockedTarget.alive || this.lockedTarget.isCrate)) {
+            const tx = this.lockedTarget.centerX !== undefined ? this.lockedTarget.centerX : this.lockedTarget.x;
+            const ty = this.lockedTarget.centerY !== undefined ? this.lockedTarget.centerY : this.lockedTarget.y;
+            this.player.angle = Math.atan2(ty - this.player.y, tx - this.player.x);
+        } else if (this.input.mouse && this.input.mouse.x !== null) {
+            const worldMouseX = this.input.mouse.x + this.camera.getRenderX();
+            const worldMouseY = this.input.mouse.y + this.camera.getRenderY();
+            this.player.angle = Math.atan2(worldMouseY - this.player.y, worldMouseX - this.player.x);
+        }
+
         if (weapon.type === 'boomerang') {
             const results = weapon.fire(this.player);
             if (!results) return;
@@ -1242,7 +1335,7 @@ export class Game {
                 this.player,
                 this.player.angle,
                 results[0].data ? (results[0].data.range || 80) : (results[0].range || 80),
-                results[0].data ? (results[0].data.damage || 20) : (results[0].damage || 20),
+                results[0].data ? (results[0].data.damage || 2) : (results[0].damage || 2),
                 weapon.color || '#ff7a45'
             );
             this.activeSkills.push(fan);
@@ -1265,8 +1358,18 @@ export class Game {
             const item = results[i];
             if (item.type === 'melee') {
                 let dmg = item.damage !== undefined ? item.damage : weapon.damage;
+                const isBuffed = (this.player.buffs && (
+                    this.player.buffs.demonForm > 0 ||
+                    this.player.buffs.bloodAura > 0 ||
+                    this.player.buffs.bankai > 0 ||
+                    this.player.buffs.mugetsu > 0 ||
+                    this.player.buffs.fullCowling > 0
+                ));
                 if (this.player.buffs && this.player.buffs.demonForm > 0) dmg *= 2;
                 if (this.player.buffs && this.player.buffs.bloodAura > 0) dmg *= 1.5;
+                if (!isBuffed) {
+                    dmg = Math.min(dmg, 5);
+                }
 
                 const attack = new MeleeAttack(
                     this.player.x + Math.cos(this.player.angle) * this.player.radius,
@@ -1296,8 +1399,16 @@ export class Game {
             } else if (item.type === 'projectile') {
                 hasProjectile = true;
                 const pdata = item.data ? { ...item.data } : { ...item };
+                const isBuffed = (this.player.buffs && (
+                    this.player.buffs.demonForm > 0 ||
+                    this.player.buffs.bloodAura > 0 ||
+                    this.player.buffs.susanoo > 0
+                ));
                 if (this.player.buffs && this.player.buffs.demonForm > 0) pdata.damage *= 2;
                 if (this.player.buffs && this.player.buffs.bloodAura > 0) pdata.damage *= 1.5;
+                if (!isBuffed && !pdata.isGetsuga) {
+                    pdata.damage = Math.min(pdata.damage, 5);
+                }
                 const spreadAngle = item.spread || 0;
                 const fireAngle = this.player.angle + spreadAngle;
                 this.projectilePool.spawn(
@@ -1332,19 +1443,46 @@ export class Game {
 
     playerMelee() {
         if (!this.player || !this.player.alive) return;
+        if (this.player.buffs && this.player.buffs.stun > 0) return;
         const weapon = this.player.inventory.getCurrentWeapon();
         if (!weapon || weapon.type !== 'melee') {
             this.player.inventory.switchToSlot(0);
         }
 
+        // Auto Lock-on aim towards locked target
+        this.updateLockedTarget();
+        if (this.lockedTarget && (this.lockedTarget.alive || this.lockedTarget.isCrate)) {
+            const tx = this.lockedTarget.centerX !== undefined ? this.lockedTarget.centerX : this.lockedTarget.x;
+            const ty = this.lockedTarget.centerY !== undefined ? this.lockedTarget.centerY : this.lockedTarget.y;
+            this.player.angle = Math.atan2(ty - this.player.y, tx - this.player.x);
+        } else if (this.input.mouse && this.input.mouse.x !== null) {
+            const worldMouseX = this.input.mouse.x + this.camera.getRenderX();
+            const worldMouseY = this.input.mouse.y + this.camera.getRenderY();
+            this.player.angle = Math.atan2(worldMouseY - this.player.y, worldMouseX - this.player.x);
+        }
+
         const meleeWeapon = this.player.inventory.getCurrentWeapon();
+        let dmg = meleeWeapon.damage;
+        const isBuffed = (this.player.buffs && (
+            this.player.buffs.demonForm > 0 ||
+            this.player.buffs.bloodAura > 0 ||
+            this.player.buffs.bankai > 0 ||
+            this.player.buffs.mugetsu > 0 ||
+            this.player.buffs.fullCowling > 0
+        ));
+        if (this.player.buffs && this.player.buffs.demonForm > 0) dmg *= 2;
+        if (this.player.buffs && this.player.buffs.bloodAura > 0) dmg *= 1.5;
+        if (!isBuffed) {
+            dmg = Math.min(dmg, 5);
+        }
+
         const attack = new MeleeAttack(
             this.player.x + Math.cos(this.player.angle) * this.player.radius,
             this.player.y + Math.sin(this.player.angle) * this.player.radius,
             this.player.angle,
             meleeWeapon.range,
             Math.PI / 1.4,
-            meleeWeapon.damage,
+            dmg,
             this.player
         );
         this.player.meleeAttacks.push(attack);
@@ -1430,6 +1568,12 @@ export class Game {
 
     update(dt) {
         if (this.state !== 'playing') return;
+
+        // Hit-Stop Micro-Freeze (Liên Quân / Anime Impact Feeling)
+        if (this.hitStopTimer > 0) {
+            this.hitStopTimer = Math.max(0, this.hitStopTimer - dt);
+            dt *= 0.15;
+        }
 
         this.gameTime += dt;
         if (this.screenDarkenTimer > 0) {
@@ -1525,6 +1669,9 @@ export class Game {
             }
         }
 
+        // Continuous Auto Lock-on Target Selection (Liên Quân Mobile Style)
+        this.updateLockedTarget();
+
         const targets = this.getTargets();
 
         // Update skill zones (fire ring, hell zone, etc.)
@@ -1563,6 +1710,9 @@ export class Game {
                 const broken = hitCrate.takeDamage(proj.damage);
                 this.particles.woodSplinter(hitCrate.centerX, hitCrate.centerY, false);
                 audio.playWoodHit();
+                if (proj.owner === this.player) {
+                    this.applyHitStop(40, 2);
+                }
                 if (broken) {
                     this.map.destroyCrate(hitCrate, this.lootManager, this.particles, audio);
                 }
@@ -1589,6 +1739,10 @@ export class Game {
                         target.takeDamage(proj.damage);
                         this.particles.hit(target.x, target.y, target.color);
                         audio.playHit();
+
+                        if (proj.owner === this.player) {
+                            this.applyHitStop(70, 3.5);
+                        }
 
                         if (proj.owner && proj.owner.buffs && proj.owner.buffs.bloodAura > 0) {
                             proj.owner.heal(Math.round(proj.damage * 0.2));
@@ -1630,6 +1784,10 @@ export class Game {
                         target.takeDamage(attack.damage);
                         this.particles.hit(target.x, target.y, target.color);
                         audio.playHit();
+
+                        if (attacker === this.player) {
+                            this.applyHitStop(80, 5);
+                        }
 
                         // KIẾM KHÍ HỘ THỂ (bladeShield reflection): reflects 20 damage + knockback
                         if (target.buffs && target.buffs.bladeShield > 0) {
@@ -1679,6 +1837,9 @@ export class Game {
                         const broken = obs.takeDamage(attack.damage);
                         this.particles.woodSplinter(obs.centerX, obs.centerY, false);
                         audio.playWoodHit();
+                        if (attacker === this.player) {
+                            this.applyHitStop(50, 2.5);
+                        }
                         if (broken) {
                             this.map.destroyCrate(obs, this.lootManager, this.particles, audio);
                         }
@@ -1845,6 +2006,71 @@ export class Game {
             } else if (player && player.view) {
                 player.view.visible = false;
             }
+
+            // Attack Range Indicator Circle (Vòng tròn tầm đánh thường Liên Quân Mobile)
+            if (this.rangeIndicatorGraphics) {
+                this.rangeIndicatorGraphics.clear();
+                if (player && player.alive) {
+                    const curWeapon = player.inventory.getCurrentWeapon();
+                    const range = curWeapon ? (curWeapon.range || 60) : 40;
+                    const wpColor = parsePixiColor(curWeapon?.color || '#00e5ff');
+
+                    // Soft inner fill area
+                    this.rangeIndicatorGraphics.circle(player.x, player.y, range)
+                        .fill({ color: wpColor, alpha: 0.05 });
+
+                    // Smooth outer boundary ring
+                    this.rangeIndicatorGraphics.circle(player.x, player.y, range)
+                        .stroke({ color: wpColor, width: 1.5, alpha: 0.35 });
+
+                    // 4 cardinal rotating notch accents
+                    const notchLen = 6;
+                    const baseRot = (this.gameTime * 0.001) % (Math.PI * 2);
+                    for (let a = 0; a < 4; a++) {
+                        const ang = baseRot + (a * Math.PI / 2);
+                        const x1 = player.x + Math.cos(ang) * (range - notchLen);
+                        const y1 = player.y + Math.sin(ang) * (range - notchLen);
+                        const x2 = player.x + Math.cos(ang) * (range + notchLen);
+                        const y2 = player.y + Math.sin(ang) * (range + notchLen);
+                        this.rangeIndicatorGraphics.moveTo(x1, y1).lineTo(x2, y2)
+                            .stroke({ color: wpColor, width: 2, alpha: 0.6 });
+                    }
+                }
+            }
+
+            // Target Lock Reticle (Hồng tâm gim kẻ địch Liên Quân Mobile)
+            if (this.targetLockGraphics) {
+                this.targetLockGraphics.clear();
+                if (player && player.alive && this.lockedTarget && (this.lockedTarget.alive || this.lockedTarget.isCrate)) {
+                    const tx = this.lockedTarget.centerX !== undefined ? this.lockedTarget.centerX : this.lockedTarget.x;
+                    const ty = this.lockedTarget.centerY !== undefined ? this.lockedTarget.centerY : this.lockedTarget.y;
+                    const tr = this.lockedTarget.radius || 22;
+                    const rot = (this.gameTime * 0.003) % (Math.PI * 2);
+                    const pulse = Math.sin(this.gameTime * 0.01) * 3;
+                    const reticleR = tr + 12 + pulse;
+
+                    // 1. Rotating corner bracket arcs
+                    for (let b = 0; b < 4; b++) {
+                        const angle = rot + (b * Math.PI / 2);
+                        const bracketStart = angle - 0.22;
+                        const bracketEnd = angle + 0.22;
+                        this.targetLockGraphics.arc(tx, ty, reticleR, bracketStart, bracketEnd)
+                            .stroke({ color: 0xff1744, width: 2.5, alpha: 0.9 });
+                    }
+
+                    // 2. Inner targeting ring
+                    this.targetLockGraphics.circle(tx, ty, reticleR)
+                        .stroke({ color: 0xff5252, width: 1, alpha: 0.35 });
+
+                    // 3. Floating indicator triangle pointing down at target
+                    const arrowY = ty - tr - 16 + Math.sin(this.gameTime * 0.008) * 3;
+                    this.targetLockGraphics.poly([
+                        tx, arrowY + 8,
+                        tx - 6, arrowY,
+                        tx + 6, arrowY
+                    ]).fill({ color: 0xff1744, alpha: 0.95 });
+                }
+            }
         }
 
         // Active skills (fans, leap slams, skyfalls, dashes, etc.)
@@ -1957,9 +2183,69 @@ export class Game {
             }
         }
 
+        // Draw Attack Range Circle
+        if (player && player.alive) {
+            const curWeapon = player.inventory.getCurrentWeapon();
+            const range = curWeapon ? (curWeapon.range || 60) : 40;
+            const rx = player.x - renderCam.x;
+            const ry = player.y - renderCam.y;
+            const color = curWeapon?.color || '#00e5ff';
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(rx, ry, range, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 229, 255, 0.05)';
+            ctx.fill();
+
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = 0.35;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([8, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
         // Draw player
         if (player && player.alive) {
             player.draw(ctx, renderCam);
+        }
+
+        // Draw Target Lock Reticle
+        if (player && player.alive && this.lockedTarget && (this.lockedTarget.alive || this.lockedTarget.isCrate)) {
+            const tx = (this.lockedTarget.centerX !== undefined ? this.lockedTarget.centerX : this.lockedTarget.x) - renderCam.x;
+            const ty = (this.lockedTarget.centerY !== undefined ? this.lockedTarget.centerY : this.lockedTarget.y) - renderCam.y;
+            const tr = this.lockedTarget.radius || 22;
+            const rot = (this.gameTime * 0.003) % (Math.PI * 2);
+            const pulse = Math.sin(this.gameTime * 0.01) * 3;
+            const reticleR = tr + 12 + pulse;
+
+            ctx.save();
+            ctx.strokeStyle = '#ff1744';
+            ctx.lineWidth = 2.5;
+            for (let b = 0; b < 4; b++) {
+                const angle = rot + (b * Math.PI / 2);
+                ctx.beginPath();
+                ctx.arc(tx, ty, reticleR, angle - 0.22, angle + 0.22);
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = 'rgba(255, 82, 82, 0.35)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(tx, ty, reticleR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Downward arrow
+            const arrowY = ty - tr - 16 + Math.sin(this.gameTime * 0.008) * 3;
+            ctx.fillStyle = '#ff1744';
+            ctx.beginPath();
+            ctx.moveTo(tx, arrowY + 8);
+            ctx.lineTo(tx - 6, arrowY);
+            ctx.lineTo(tx + 6, arrowY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
         }
 
         // Draw active skills (fans, leap slams, skyfalls, dashes, etc.)
