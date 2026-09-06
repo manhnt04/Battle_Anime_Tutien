@@ -2389,12 +2389,14 @@ export class MugetsuWaveEffect {
         ctx.restore();
     }
 
-    drawPixi(g) {
-        if (!this.alive || !g) return;
-        g.arc(this.x, this.y, this.width / 2, this.angle - Math.PI / 2.2, this.angle + Math.PI / 2.2)
-         .stroke({ color: 0xd500f9, width: 6, alpha: 0.95 });
-        g.arc(this.x - Math.cos(this.angle) * 8, this.y - Math.sin(this.angle) * 8, this.width / 2 - 4, this.angle - Math.PI / 2.3, this.angle + Math.PI / 2.3)
-         .stroke({ color: 0xff1744, width: 3, alpha: 0.85 });
+    drawPixi(g, gAdd = null) {
+        if (!this.alive) return;
+        const targetG = gAdd || g;
+        if (!targetG) return;
+        targetG.arc(this.x, this.y, this.width / 2, this.angle - Math.PI / 2.2, this.angle + Math.PI / 2.2)
+               .stroke({ color: 0xd500f9, width: 8, alpha: 0.95 });
+        targetG.arc(this.x - Math.cos(this.angle) * 8, this.y - Math.sin(this.angle) * 8, this.width / 2 - 4, this.angle - Math.PI / 2.3, this.angle + Math.PI / 2.3)
+               .stroke({ color: 0xff1744, width: 4, alpha: 0.85 });
     }
 }
 
@@ -2639,14 +2641,16 @@ export class UnitedStatesSmashEffect {
         ctx.restore();
     }
 
-    drawPixi(g) {
-        if (!this.alive || !g) return;
+    drawPixi(g, gAdd = null) {
+        if (!this.alive) return;
+        const targetG = gAdd || g;
+        if (!targetG) return;
         const p = Math.min(1, this.elapsed / this.duration);
         const r = this.radius * p;
         const alpha = (1 - p);
 
-        g.circle(this.x, this.y, r).stroke({ color: 0xffd700, width: 6 * alpha, alpha: alpha });
-        g.circle(this.x, this.y, r * 0.7).stroke({ color: 0x00e5ff, width: 3 * alpha, alpha: alpha * 0.8 });
+        targetG.circle(this.x, this.y, r).stroke({ color: 0xffd700, width: 8 * alpha, alpha: alpha });
+        targetG.circle(this.x, this.y, r * 0.7).stroke({ color: 0x00e5ff, width: 4 * alpha, alpha: alpha * 0.85 });
     }
 }
 
@@ -2750,14 +2754,19 @@ export class ChidoriDashEffect {
         ctx.restore();
     }
 
-    drawPixi(g) {
-        if (!this.alive || !g) return;
+    drawPixi(g, gAdd = null) {
+        if (!this.alive) return;
+        const targetG = gAdd || g;
+        if (!targetG) return;
         const p = Math.min(1, this.elapsed / this.duration);
         const alpha = 1 - p;
         const colNum = parsePixiColor(this.color).color;
-        g.moveTo(this.startX, this.startY)
-         .lineTo(this.endX, this.endY)
-         .stroke({ color: colNum, width: 3.5 * alpha, alpha: alpha });
+        targetG.moveTo(this.startX, this.startY)
+               .lineTo(this.endX, this.endY)
+               .stroke({ color: colNum, width: 6 * alpha, alpha: alpha });
+        targetG.moveTo(this.startX, this.startY)
+               .lineTo(this.endX, this.endY)
+               .stroke({ color: 0xffffff, width: 2.5 * alpha, alpha: alpha });
     }
 }
 
@@ -3139,19 +3148,21 @@ export class ExcaliburBeamEffect {
         ctx.restore();
     }
 
-    drawPixi(g) {
-        if (!this.alive || !g) return;
+    drawPixi(g, gAdd = null) {
+        if (!this.alive) return;
+        const targetG = gAdd || g;
+        if (!targetG) return;
         const p = Math.min(1, this.elapsed / this.duration);
         const alpha = Math.sin(p * Math.PI);
         const endX = this.x + Math.cos(this.angle) * this.length;
         const endY = this.y + Math.sin(this.angle) * this.length;
 
-        g.moveTo(this.x, this.y)
-         .lineTo(endX, endY)
-         .stroke({ color: 0xffd700, width: (this.width + 20) * alpha, alpha: alpha * 0.6 });
-        g.moveTo(this.x, this.y)
-         .lineTo(endX, endY)
-         .stroke({ color: 0xffffff, width: this.width * alpha, alpha: alpha });
+        targetG.moveTo(this.x, this.y)
+               .lineTo(endX, endY)
+               .stroke({ color: 0xffd700, width: (this.width + 24) * alpha, alpha: alpha * 0.7 });
+        targetG.moveTo(this.x, this.y)
+               .lineTo(endX, endY)
+               .stroke({ color: 0xffffff, width: this.width * 0.45 * alpha, alpha: alpha });
     }
 }
 
@@ -3462,10 +3473,15 @@ export class EnumaElishVortexEffect {
         ctx.restore();
     }
 
-    drawPixi(g) {
-        if (!this.alive || !g) return;
-        g.circle(this.x, this.y, this.radius * 0.3).fill({ color: 0x111111, alpha: 0.9 });
-        g.circle(this.x, this.y, this.radius * 0.65).stroke({ color: 0xd50000, width: 3.5, alpha: 0.8 });
-        g.circle(this.x, this.y, this.radius).stroke({ color: 0xff1744, width: 4, alpha: 0.7 });
+    drawPixi(g, gAdd = null) {
+        if (!this.alive) return;
+        if (g) {
+            g.circle(this.x, this.y, this.radius * 0.3).fill({ color: 0x111111, alpha: 0.9 });
+        }
+        const targetG = gAdd || g;
+        if (targetG) {
+            targetG.circle(this.x, this.y, this.radius * 0.65).stroke({ color: 0xd50000, width: 4.5, alpha: 0.85 });
+            targetG.circle(this.x, this.y, this.radius).stroke({ color: 0xff1744, width: 6, alpha: 0.9 });
+        }
     }
 }

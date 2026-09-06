@@ -13,6 +13,7 @@ import {
 import { LootManager } from './loot.js';
 import { ParticleSystem } from './particles.js';
 import { audio } from './audio.js';
+import { AnimeShaderManager, AdditiveVFXRenderer } from './vfx.js';
 
 export class Camera {
     constructor(width, height) {
@@ -355,6 +356,7 @@ export class Game {
             typeof window !== 'undefined' ? window.innerHeight : 1080
         );
         this.pixiApp = null;
+        this.vfxManager = null;
         this.map = new GameMap();
         this.player = null;
         this.enemies = [];
@@ -501,6 +503,19 @@ export class Game {
         this.particleGraphics = new window.PIXI.Graphics();
         this.particleLayer.addChild(this.particleGraphics);
         this.worldContainer.addChild(this.particleLayer);
+
+        // Additive glowing anime VFX layer (Neon / Blazing Energy)
+        this.additiveLayer = new window.PIXI.Container();
+        this.additiveGraphics = new window.PIXI.Graphics();
+        this.additiveGraphics.blendMode = 'add';
+        this.additiveLayer.addChild(this.additiveGraphics);
+        this.worldContainer.addChild(this.additiveLayer);
+
+        // High-Performance Anime VFX & Shader Manager
+        this.vfxManager = new AnimeShaderManager(this.pixiApp);
+        if (typeof window !== 'undefined') {
+            window.vfxManager = this.vfxManager;
+        }
 
         // Screen-space layers
         this.fogLayer = new window.PIXI.Container();
@@ -1070,7 +1085,12 @@ export class Game {
         if (res) {
             audio.playShoot('KIEM_KHI');
             if (this.screenShakeEnabled) {
-                this.camera.addShake(4);
+                this.camera.addShake(index === 2 ? 10 : 4);
+            }
+            if (index === 2 && this.vfxManager) {
+                const screenX = this.player.x - this.camera.x;
+                const screenY = this.player.y - this.camera.y;
+                this.vfxManager.triggerShockwave(screenX, screenY, 400, 0.045);
             }
         }
     }
@@ -1332,6 +1352,9 @@ export class Game {
             this.screenFlashTimer = Math.max(0, this.screenFlashTimer - dt);
         }
         this.safeZone.update(dt);
+        if (this.vfxManager) {
+            this.vfxManager.update(dt);
+        }
 
         this.airdropTimer -= dt;
         if (this.airdropTimer <= 0) {
@@ -1694,9 +1717,10 @@ export class Game {
         // Active skills (fans, leap slams, skyfalls, dashes, etc.)
         if (visualsDirty) {
             this.activeSkillGraphics.clear();
+            if (this.additiveGraphics) this.additiveGraphics.clear();
             for (let i = 0; i < this.activeSkills.length; i++) {
                 if (this.activeSkills[i].alive && typeof this.activeSkills[i].drawPixi === 'function') {
-                    this.activeSkills[i].drawPixi(this.activeSkillGraphics);
+                    this.activeSkills[i].drawPixi(this.activeSkillGraphics, this.additiveGraphics);
                 }
             }
         }
@@ -1712,8 +1736,8 @@ export class Game {
             }
         }
 
-        // Particles (batched on GPU)
-        if (visualsDirty) this.particles.drawPixi(this.particleGraphics);
+        // Particles (batched on GPU with Additive Blending for sparks)
+        if (visualsDirty) this.particles.drawPixi(this.particleGraphics, this.additiveGraphics);
 
         // FOG OF WAR: Radial vision vignette on screen-space fogLayer
         if (player && player.alive) {

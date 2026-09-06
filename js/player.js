@@ -520,6 +520,7 @@ export class Player {
         this.gBody = new window.PIXI.Graphics();
         this.gAim = new window.PIXI.Graphics();
         this.gAuras = new window.PIXI.Graphics();
+        this.gAuras.blendMode = 'add';
         this.gMelee = new window.PIXI.Graphics();
 
         this.view.addChild(this.gShadow);
@@ -543,6 +544,7 @@ export class Player {
 
     destroyPixi() {
         if (this.view) {
+            this.view.filters = null;
             if (this.parentContainer) {
                 this.parentContainer.removeChild(this.view);
             }
@@ -700,6 +702,24 @@ export class Player {
         if (this.buffs.rooted > 0) {
             this.gAuras.ellipse(0, this.radius - 2, this.radius + 6, (this.radius + 6) * 0.45)
                        .stroke({ color: 0xffd700, width: 3, alpha: 0.9 });
+        }
+
+        // Dynamic Anime GLSL Aura Filter on character view (Tier 2 Zero-Lag Shader)
+        let activeAuraFilter = null;
+        if (typeof window !== 'undefined' && window.vfxManager) {
+            if (this.buffs.fullCowling > 0) activeAuraFilter = window.vfxManager.getAuraFilter('#00e5ff', 3.8);
+            else if (this.buffs.bankai > 0) activeAuraFilter = window.vfxManager.getAuraFilter('#ff1744', 3.5);
+            else if (this.buffs.susanoo > 0) activeAuraFilter = window.vfxManager.getAuraFilter('#00b0ff', 4.0);
+            else if (this.buffs.mugetsu > 0) activeAuraFilter = window.vfxManager.getAuraFilter('#d500f9', 4.2);
+            else if (this.buffs.avalon > 0) activeAuraFilter = window.vfxManager.getAuraFilter('#ffd700', 3.6);
+        }
+
+        if (activeAuraFilter) {
+            if (!this.view.filters || !this.view.filters.includes(activeAuraFilter)) {
+                this.view.filters = [activeAuraFilter];
+            }
+        } else if (this.view.filters && this.view.filters.length > 0) {
+            this.view.filters = null;
         }
 
         // Active Melee Attacks

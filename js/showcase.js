@@ -1869,17 +1869,18 @@ export class WeaponShowcase {
             }
         }
 
-        // Draw particles
+        // Draw particles with additive blending for glowing anime sparks
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
         for (let i = 0; i < this.particles.length; i++) {
             const pt = this.particles[i];
-            ctx.save();
             ctx.fillStyle = pt.color;
             ctx.globalAlpha = Math.max(0, pt.life);
             ctx.beginPath();
             ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
             ctx.fill();
-            ctx.restore();
         }
+        ctx.restore();
 
         // Draw Popups (Damage Numbers / Buffs)
         for (let i = 0; i < this.popups.length; i++) {

@@ -295,12 +295,14 @@ export class ParticleSystem {
             ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha));
 
             if (p.type === 'spark') {
+                ctx.globalCompositeOperation = 'lighter';
                 ctx.strokeStyle = p.color;
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 2.5;
                 ctx.beginPath();
                 ctx.moveTo(sx, sy);
                 ctx.lineTo(sx - p.vx * 1.8, sy - p.vy * 1.8);
                 ctx.stroke();
+                ctx.globalCompositeOperation = 'source-over';
             } else {
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
@@ -312,9 +314,12 @@ export class ParticleSystem {
         ctx.restore();
     }
 
-    drawPixi(g) {
+    drawPixi(g, gAdd = null) {
         if (!g) return;
         g.clear();
+        if (gAdd) gAdd.clear();
+        const targetAdd = gAdd || g;
+
         for (let i = 0; i < this.poolSize; i++) {
             const p = this.pool[i];
             if (!p.active) continue;
@@ -323,9 +328,12 @@ export class ParticleSystem {
             const colNum = parsePixiColor(p.color || '#ffd700').color;
 
             if (p.type === 'spark') {
-                g.moveTo(p.x, p.y)
-                 .lineTo(p.x - p.vx * 1.8, p.y - p.vy * 1.8)
-                 .stroke({ color: colNum, width: 2, alpha });
+                targetAdd.moveTo(p.x, p.y)
+                         .lineTo(p.x - p.vx * 1.8, p.y - p.vy * 1.8)
+                         .stroke({ color: colNum, width: 2.5, alpha });
+            } else if (p.type === 'plasma' || p.type === 'lightning') {
+                targetAdd.circle(p.x, p.y, Math.max(1, p.radius))
+                         .fill({ color: colNum, alpha });
             } else {
                 g.circle(p.x, p.y, Math.max(1, p.radius))
                  .fill({ color: colNum, alpha });
