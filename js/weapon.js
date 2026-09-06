@@ -319,7 +319,9 @@ export const WEAPONS = {
         ammoType: 'darts',
         damage: 35,
         range: 150,
-        speed: 14,
+        speed: 15,
+        count: 3,
+        spread: 0.22,
         magSize: 30,
         reloadTime: 900,
         fireRate: 550,
@@ -527,6 +529,23 @@ export class Weapon {
                     pierce: 1,
                     isBabylon: true
                 }];
+            } else if (this.rawKey === 'KATON') {
+                const spreads = [-0.22, 0, 0.22];
+                const res = [];
+                for (let i = 0; i < spreads.length; i++) {
+                    res.push({
+                        type: 'projectile',
+                        damage: this.damage,
+                        speed: this.speed || 15,
+                        range: this.range || 150,
+                        spread: spreads[i],
+                        color: '#c7c9d3',
+                        ammoType: 'darts',
+                        weaponName: this.name,
+                        pierce: 1
+                    });
+                }
+                return res;
             }
 
             const projectiles = [];
@@ -2218,29 +2237,38 @@ export class ShunpoEffect {
     draw(ctx, camera) {
         if (!this.alive) return;
         const p = Math.min(1, this.elapsed / this.duration);
-        const alpha = (1 - p) * 0.75;
-        const sx = this.startX - camera.x;
-        const sy = this.startY - camera.y;
+        const alpha = Math.max(0, 1 - p);
+        const sx1 = this.startX - camera.x;
+        const sy1 = this.startY - camera.y;
+        const sx2 = this.endX - camera.x;
+        const sy2 = this.endY - camera.y;
 
         ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#111111';
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 16, 0, Math.PI * 2);
-        ctx.fill();
+        // 5 Fading afterimages along the path
+        for (let i = 0; i < 5; i++) {
+            const pp = Math.max(0, (1 - p) - i * 0.15);
+            if (pp <= 0) continue;
+            const ax = sx1 + (sx2 - sx1) * (i / 4);
+            const ay = sy1 + (sy2 - sy1) * (i / 4);
+            ctx.beginPath();
+            ctx.fillStyle = `rgba(229, 72, 77, ${0.35 * pp})`;
+            ctx.shadowColor = this.color;
+            ctx.shadowBlur = 16;
+            ctx.arc(ax, ay, 15 - i * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 * pp})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
 
+        // Connecting dash ray
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3.5 * alpha;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 20;
         ctx.beginPath();
-        ctx.arc(sx, sy, 16, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.setLineDash([4, 6]);
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(this.endX - camera.x, this.endY - camera.y);
+        ctx.moveTo(sx1, sy1);
+        ctx.lineTo(sx2, sy2);
         ctx.stroke();
         ctx.restore();
     }
@@ -2248,14 +2276,19 @@ export class ShunpoEffect {
     drawPixi(g) {
         if (!this.alive || !g) return;
         const p = Math.min(1, this.elapsed / this.duration);
-        const alpha = (1 - p) * 0.75;
+        const alpha = Math.max(0, 1 - p);
         const colNum = parsePixiColor(this.color).color;
 
-        g.circle(this.startX, this.startY, 16).fill({ color: 0x111111, alpha: alpha });
-        g.circle(this.startX, this.startY, 16).stroke({ color: colNum, width: 2, alpha: alpha });
+        for (let i = 0; i < 5; i++) {
+            const pp = Math.max(0, (1 - p) - i * 0.15);
+            if (pp <= 0) continue;
+            const ax = this.startX + (this.endX - this.startX) * (i / 4);
+            const ay = this.startY + (this.endY - this.startY) * (i / 4);
+            g.circle(ax, ay, 15 - i * 1.5).fill({ color: colNum, alpha: 0.35 * pp });
+        }
         g.moveTo(this.startX, this.startY)
          .lineTo(this.endX, this.endY)
-         .stroke({ color: colNum, width: 2, alpha: alpha * 0.5 });
+         .stroke({ color: colNum, width: 3.5 * alpha, alpha: alpha * 0.8 });
     }
 }
 
@@ -2439,12 +2472,33 @@ export class ManchesterSmashEffect {
             const alpha = Math.max(0, 1 - shockProgress);
             ctx.strokeStyle = this.color;
             ctx.shadowColor = '#69f0ae';
-            ctx.shadowBlur = 18;
-            ctx.lineWidth = 4 * alpha;
+            ctx.shadowBlur = 24;
+            ctx.lineWidth = 6 * alpha;
             ctx.beginPath();
             ctx.arc(sx, sy, r, 0, Math.PI * 2);
             ctx.stroke();
+
+            // Inner shockwave
+            ctx.strokeStyle = '#eaf3ff';
+            ctx.lineWidth = 3 * alpha;
+            ctx.beginPath();
+            ctx.arc(sx, sy, r * 0.7, 0, Math.PI * 2);
+            ctx.stroke();
         } else {
+            const p = Math.min(1, this.elapsed / this.duration);
+            const curX = this.startX + (this.targetX - this.startX) * p - camera.x;
+            const curY = this.startY + (this.targetY - this.startY) * p - camera.y;
+            const rise = Math.sin(p * Math.PI) * 44;
+
+            // Leaping silhouette in air
+            ctx.fillStyle = 'rgba(74, 144, 255, 0.85)';
+            ctx.shadowColor = '#4a90ff';
+            ctx.shadowBlur = 18;
+            ctx.beginPath();
+            ctx.arc(curX, curY - rise, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ground target indicator
             ctx.strokeStyle = 'rgba(0, 229, 255, 0.5)';
             ctx.lineWidth = 2;
             ctx.setLineDash([6, 6]);
@@ -2462,8 +2516,13 @@ export class ManchesterSmashEffect {
             const shockProgress = (this.elapsed - this.duration) / 300;
             const r = this.radius * Math.min(1, shockProgress * 1.3);
             const alpha = Math.max(0, 1 - shockProgress);
-            g.circle(this.targetX, this.targetY, r).stroke({ color: colNum, width: 4 * alpha, alpha: alpha });
+            g.circle(this.targetX, this.targetY, r).stroke({ color: colNum, width: 6 * alpha, alpha: alpha });
+            g.circle(this.targetX, this.targetY, r * 0.7).stroke({ color: 0xffffff, width: 3 * alpha, alpha: alpha * 0.8 });
         } else {
+            const p = Math.min(1, this.elapsed / this.duration);
+            const curX = this.startX + (this.targetX - this.startX) * p;
+            const curY = this.startY + (this.targetY - this.startY) * p - Math.sin(p * Math.PI) * 44;
+            g.circle(curX, curY, 12).fill({ color: 0x4a90ff, alpha: 0.85 });
             g.circle(this.targetX, this.targetY, this.radius).stroke({ color: colNum, width: 2, alpha: 0.5 });
         }
     }
@@ -2664,15 +2723,29 @@ export class ChidoriDashEffect {
 
         ctx.save();
         ctx.strokeStyle = this.color;
-        ctx.shadowColor = '#00b0ff';
-        ctx.shadowBlur = 18;
-        ctx.lineWidth = 4 * alpha;
+        ctx.shadowColor = '#3fd0ff';
+        ctx.shadowBlur = 22;
+        ctx.lineWidth = 3.5 * alpha;
         ctx.beginPath();
         ctx.moveTo(sx1, sy1);
-        const midX = (sx1 + sx2) / 2 + (Math.random() - 0.5) * 16;
-        const midY = (sy1 + sy2) / 2 + (Math.random() - 0.5) * 16;
-        ctx.lineTo(midX, midY);
+
+        const dist = Math.hypot(sx2 - sx1, sy2 - sy1);
+        const ang = Math.atan2(sy2 - sy1, sx2 - sx1);
+        const perp = ang + Math.PI / 2;
+        const steps = Math.max(3, Math.floor(dist / 14));
+        for (let i = 1; i < steps; i++) {
+            const frac = i / steps;
+            const jitter = (Math.random() - 0.5) * 16;
+            const bx = sx1 + Math.cos(ang) * (dist * frac) + Math.cos(perp) * jitter;
+            const by = sy1 + Math.sin(ang) * (dist * frac) + Math.sin(perp) * jitter;
+            ctx.lineTo(bx, by);
+        }
         ctx.lineTo(sx2, sy2);
+        ctx.stroke();
+
+        // Inner white hot lightning thread
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5 * alpha;
         ctx.stroke();
         ctx.restore();
     }
@@ -2684,7 +2757,7 @@ export class ChidoriDashEffect {
         const colNum = parsePixiColor(this.color).color;
         g.moveTo(this.startX, this.startY)
          .lineTo(this.endX, this.endY)
-         .stroke({ color: colNum, width: 4 * alpha, alpha: alpha });
+         .stroke({ color: colNum, width: 3.5 * alpha, alpha: alpha });
     }
 }
 
@@ -2755,35 +2828,44 @@ export class KamuiVortexEffect {
         if (!this.alive) return;
         const sx = this.x - camera.x;
         const sy = this.y - camera.y;
+        const p = Math.min(1, this.elapsed / this.duration);
 
         ctx.save();
         ctx.translate(sx, sy);
-        ctx.rotate(this.rot);
 
-        ctx.strokeStyle = this.color;
-        ctx.shadowColor = '#7c4dff';
-        ctx.shadowBlur = 18;
-        ctx.lineWidth = 3;
-
-        for (let i = 1; i <= 3; i++) {
+        // 3 Collapsing inward rotating spiral arcs
+        for (let i = 0; i < 3; i++) {
+            const rot = this.rot + i * (Math.PI * 2 / 3);
+            const r = this.radius * (1 - p * 0.7);
             ctx.beginPath();
-            ctx.arc(0, 0, (this.radius / 3) * i, 0, Math.PI * 1.5);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 3.5;
+            ctx.shadowColor = '#8a5cf0';
+            ctx.shadowBlur = 22;
+            ctx.arc(0, 0, Math.max(6, r), rot, rot + 1.6);
             ctx.stroke();
         }
 
-        ctx.fillStyle = '#12002b';
+        // Inner singularity core
+        ctx.fillStyle = 'rgba(18, 0, 43, 0.9)';
         ctx.beginPath();
-        ctx.arc(0, 0, this.radius * 0.35, 0, Math.PI * 2);
+        ctx.arc(0, 0, Math.max(4, this.radius * 0.3 * (1 - p * 0.5)), 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
 
     drawPixi(g) {
         if (!this.alive || !g) return;
+        const p = Math.min(1, this.elapsed / this.duration);
         const colNum = parsePixiColor(this.color).color;
-        g.circle(this.x, this.y, this.radius * 0.35).fill({ color: 0x12002b, alpha: 0.85 });
-        g.circle(this.x, this.y, this.radius * 0.7).stroke({ color: colNum, width: 2.5, alpha: 0.8 });
-        g.circle(this.x, this.y, this.radius).stroke({ color: colNum, width: 3, alpha: 0.6 });
+        for (let i = 0; i < 3; i++) {
+            const rot = this.rot + i * (Math.PI * 2 / 3);
+            const r = Math.max(6, this.radius * (1 - p * 0.7));
+            g.arc(this.x, this.y, r, rot, rot + 1.6)
+             .stroke({ color: colNum, width: 3.5, alpha: 0.85 });
+        }
+        g.circle(this.x, this.y, Math.max(4, this.radius * 0.3 * (1 - p * 0.5)))
+         .fill({ color: 0x12002b, alpha: 0.9 });
     }
 }
 
@@ -2924,17 +3006,24 @@ export class StrikeAirEffect {
         if (!this.alive) return;
         const p = Math.min(1, this.elapsed / this.duration);
         const r = this.range * Math.min(1, p * 1.5);
-        const alpha = (1 - p);
+        const alpha = Math.max(0, 1 - p);
         const sx = this.x - camera.x;
         const sy = this.y - camera.y;
 
         ctx.save();
         ctx.strokeStyle = this.color;
         ctx.shadowColor = '#ffffff';
-        ctx.shadowBlur = 18;
-        ctx.lineWidth = 4 * alpha;
+        ctx.shadowBlur = 22;
+        ctx.lineWidth = 5 * alpha;
         ctx.beginPath();
-        ctx.arc(sx, sy, r, this.angle - Math.PI / 4, this.angle + Math.PI / 4);
+        ctx.arc(sx, sy, r, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Inner pressure blast ring
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 2.5 * alpha;
+        ctx.beginPath();
+        ctx.arc(sx, sy, r * 0.65, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
     }
@@ -2943,9 +3032,9 @@ export class StrikeAirEffect {
         if (!this.alive || !g) return;
         const p = Math.min(1, this.elapsed / this.duration);
         const r = this.range * Math.min(1, p * 1.5);
-        const alpha = (1 - p);
-        g.arc(this.x, this.y, r, this.angle - Math.PI / 4, this.angle + Math.PI / 4)
-         .stroke({ color: 0xffd700, width: 4 * alpha, alpha: alpha });
+        const alpha = Math.max(0, 1 - p);
+        g.circle(this.x, this.y, r).stroke({ color: 0xffd700, width: 5 * alpha, alpha: alpha });
+        g.circle(this.x, this.y, r * 0.65).stroke({ color: 0xffffff, width: 2.5 * alpha, alpha: alpha * 0.8 });
     }
 }
 
@@ -3019,25 +3108,34 @@ export class ExcaliburBeamEffect {
         const alpha = Math.sin(p * Math.PI);
         const sx = this.x - camera.x;
         const sy = this.y - camera.y;
-        const endX = sx + Math.cos(this.angle) * this.length;
-        const endY = sy + Math.sin(this.angle) * this.length;
 
         ctx.save();
-        ctx.strokeStyle = '#ffffff';
+        ctx.translate(sx, sy);
+        ctx.rotate(this.angle);
+
+        const len = this.length * Math.min(1, p * 2.5);
+        const w = this.width * alpha;
+
+        // Beam gradient
+        const grad = ctx.createLinearGradient(0, 0, len, 0);
+        grad.addColorStop(0, `rgba(255, 255, 255, ${0.95 * alpha})`);
+        grad.addColorStop(0.35, `rgba(255, 235, 59, ${0.85 * alpha})`);
+        grad.addColorStop(1, `rgba(255, 215, 0, ${0.2 * alpha})`);
+
+        ctx.fillStyle = grad;
         ctx.shadowColor = '#ffd700';
         ctx.shadowBlur = 35;
-        ctx.lineWidth = this.width * alpha;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
+        ctx.fillRect(0, -w / 2, len, w);
 
-        ctx.strokeStyle = '#ffd700';
-        ctx.lineWidth = (this.width + 20) * alpha;
+        // Inner white light core
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * alpha})`;
+        ctx.fillRect(0, -w * 0.25, len, w * 0.5);
+
+        // Core burst at hilt
         ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
+        ctx.arc(0, 0, w * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
         ctx.restore();
     }
 
@@ -3207,12 +3305,27 @@ export class EnkiduChainEffect {
         ctx.save();
         ctx.strokeStyle = '#ffd700';
         ctx.shadowColor = '#ffd700';
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 14;
         ctx.lineWidth = 3;
         ctx.setLineDash([8, 4]);
         ctx.beginPath();
         ctx.moveTo(sx1, sy1);
         ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        // Pulsing concentric chain binding rings around victim
+        ctx.setLineDash([]);
+        const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * 0.02);
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(endX, endY, 22 + 4 * pulse, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(endX, endY, 16 + 2 * pulse, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
     }
@@ -3224,6 +3337,8 @@ export class EnkiduChainEffect {
         g.moveTo(this.owner.x, this.owner.y)
          .lineTo(endX, endY)
          .stroke({ color: 0xffd700, width: 3, alpha: 0.9 });
+        const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * 0.02);
+        g.circle(endX, endY, 22 + 4 * pulse).stroke({ color: 0xffd700, width: 2.5, alpha: 0.9 });
     }
 }
 
@@ -3313,25 +3428,35 @@ export class EnumaElishVortexEffect {
         if (!this.alive) return;
         const sx = this.x - camera.x;
         const sy = this.y - camera.y;
+        const p = Math.min(1, this.elapsed / this.duration);
 
         ctx.save();
         ctx.translate(sx, sy);
-        ctx.rotate(this.rot);
 
-        ctx.strokeStyle = '#d50000';
-        ctx.shadowColor = '#d50000';
-        ctx.shadowBlur = 25;
-        ctx.lineWidth = 4;
-
-        for (let i = 1; i <= 3; i++) {
+        // 3 Collapsing inward rotating spatial rift arcs
+        for (let i = 0; i < 3; i++) {
+            const rot = this.rot + i * (Math.PI * 2 / 3);
+            const r = this.radius * (1 - p * 0.6);
             ctx.beginPath();
-            ctx.arc(0, 0, (this.radius / 3) * i, 0, Math.PI * 1.6);
+            ctx.strokeStyle = '#e0483e';
+            ctx.lineWidth = 4.5;
+            ctx.shadowColor = '#d50000';
+            ctx.shadowBlur = 26;
+            ctx.arc(0, 0, Math.max(10, r), rot, rot + 1.6);
+            ctx.stroke();
+
+            // Dark inner edge
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(26, 0, 8, 0.75)';
+            ctx.lineWidth = 2.5;
+            ctx.arc(0, 0, Math.max(8, r - 4), rot, rot + 1.6);
             ctx.stroke();
         }
 
-        ctx.fillStyle = '#111111';
+        // Singularity void core
+        ctx.fillStyle = '#0a0004';
         ctx.beginPath();
-        ctx.arc(0, 0, this.radius * 0.3, 0, Math.PI * 2);
+        ctx.arc(0, 0, Math.max(6, this.radius * 0.35 * (1 - p * 0.5)), 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();

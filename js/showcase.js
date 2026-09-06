@@ -229,9 +229,13 @@ export class WeaponShowcase {
     }
 
     spawnBloodSparks(x, y, color) {
-        for (let i = 0; i < 12; i++) {
+        this.burst(x, y, color, 12);
+    }
+
+    burst(x, y, color, n = 12) {
+        for (let i = 0; i < n; i++) {
             const ang = Math.random() * Math.PI * 2;
-            const spd = 2 + Math.random() * 5;
+            const spd = 1.5 + Math.random() * 4.5;
             this.particles.push({
                 x,
                 y,
@@ -239,8 +243,8 @@ export class WeaponShowcase {
                 vy: Math.sin(ang) * spd,
                 color,
                 life: 1.0,
-                decay: 0.04 + Math.random() * 0.04,
-                radius: 2.5 + Math.random() * 2
+                decay: 0.03 + Math.random() * 0.04,
+                radius: 2 + Math.random() * 2.5
             });
         }
     }
@@ -306,58 +310,84 @@ export class WeaponShowcase {
             });
         } else if (this.selectedWeaponKey === 'ZANGETSU') {
             this.activeVFX.push({
-                type: 'getsuga_demo',
-                x: this.player.x + 20,
+                type: 'slash_arc',
+                x: this.player.x,
                 y: this.player.y,
+                faceAngle: 0,
+                radius: 70,
+                arcDeg: 110,
+                color: '#e5484d',
+                duration: 200,
+                elapsed: 0
+            });
+            const dx = this.dummy.x - this.player.x;
+            const dy = this.dummy.y - this.player.y;
+            const len = Math.hypot(dx, dy) || 1;
+            this.activeVFX.push({
+                type: 'crescent_wave',
+                startX: this.player.x + 20,
+                startY: this.player.y,
                 targetX: this.dummy.x,
                 targetY: this.dummy.y,
-                color: '#ff1744',
-                damage: w.damage
-            });
-            this.activeVFX.push({
-                type: 'slash',
-                x: (this.player.x + this.dummy.x) / 2,
-                y: this.player.y,
-                angle: 0.2,
-                radius: 65,
-                color: '#111111',
-                life: 1.0
+                ux: dx / len,
+                uy: dy / len,
+                endLen: len + 60,
+                color: '#e5484d',
+                damage: w.damage,
+                duration: 450,
+                elapsed: 0,
+                hit: false,
+                pierce: true
             });
         } else if (this.selectedWeaponKey === 'ONE_FOR_ALL') {
             this.activeVFX.push({
-                type: 'smash_punch',
-                x: this.dummy.x,
-                y: this.dummy.y,
-                color: '#00e676',
-                life: 1.0,
-                radius: 50
+                type: 'punch_impact',
+                x: this.player.x + 30,
+                y: this.player.y,
+                color: '#4a90ff',
+                duration: 220,
+                elapsed: 0
             });
+            this.burst(this.player.x + 40, this.player.y, '#4a90ff', 6);
             this.dummy.shakeX = 14;
             const isStun = Math.random() < 0.3;
-            this.damageDummy(w.damage, '#00e676', `💥 DETROIT SMASH -${w.damage}`);
+            this.damageDummy(w.damage, '#4a90ff', `💥 DETROIT SMASH -${w.damage}`);
             if (isStun) {
                 this.addPopup(this.dummy.x, this.dummy.y - 45, '💫 CHOÁNG 0.5s', '#ffd700');
             }
         } else if (this.selectedWeaponKey === 'KATON') {
-            for (let ang of [-0.25, 0, 0.25]) {
+            const count = 3;
+            const spreadDeg = 50;
+            const range = 180;
+            for (let i = 0; i < count; i++) {
+                const t = count === 1 ? 0 : (i / (count - 1)) - 0.5;
+                const ang = (t * spreadDeg) * Math.PI / 180;
                 this.activeVFX.push({
-                    type: 'kunai_projectile',
-                    x: this.player.x,
-                    y: this.player.y,
-                    angle: ang,
-                    color: '#2979ff',
-                    damage: 35
+                    type: 'fan_kunai',
+                    startX: this.player.x,
+                    startY: this.player.y,
+                    ang: ang,
+                    range: range,
+                    color: '#c7c9d3',
+                    damage: 35,
+                    duration: 450,
+                    elapsed: 0,
+                    hit: false
                 });
             }
         } else if (this.selectedWeaponKey === 'EXCALIBUR') {
             this.activeVFX.push({
-                type: 'heavy_slash',
-                x: this.dummy.x,
-                y: this.dummy.y,
-                color: '#ffd700',
-                life: 1.0
+                type: 'slash_arc',
+                x: this.player.x,
+                y: this.player.y,
+                faceAngle: 0,
+                radius: 70,
+                arcDeg: 110,
+                color: '#e9e3c9',
+                duration: 180,
+                elapsed: 0
             });
-            this.damageDummy(w.damage, '#ffd700', `✨ INVISIBLE AIR -${w.damage}`);
+            this.damageDummy(w.damage, '#d8b34e', `✨ INVISIBLE AIR -${w.damage}`);
             if (Math.random() < 0.2) {
                 this.activeVFX.push({
                     type: 'arc_arrow',
@@ -370,16 +400,18 @@ export class WeaponShowcase {
                 });
             }
         } else if (this.selectedWeaponKey === 'GATE_OF_BABYLON') {
+            const sy = this.player.y - 20 + Math.random() * 40;
             this.activeVFX.push({
-                type: 'babylon_shot',
+                type: 'arrow_shot',
                 startX: this.player.x - 20,
-                startY: this.player.y - 20 + Math.random() * 40,
-                x: this.player.x - 20,
-                y: this.player.y - 20 + Math.random() * 40,
+                startY: sy,
                 targetX: this.dummy.x,
                 targetY: this.dummy.y,
-                color: '#ffd700',
-                damage: w.damage
+                color: '#c9a24b',
+                damage: w.damage,
+                duration: 260,
+                elapsed: 0,
+                hit: false
             });
         }
     }
@@ -567,43 +599,54 @@ export class WeaponShowcase {
                     // Q: Shunpo
                     audio.playShunpo();
                     this.activeVFX.push({
-                        type: 'dash_trail',
-                        x1: this.player.x,
-                        y1: this.player.y,
-                        x2: this.dummy.x - 40,
-                        y2: this.dummy.y,
-                        color: '#ff1744',
-                        life: 1.0
+                        type: 'dash_blink',
+                        startX: this.player.x,
+                        startY: this.player.y,
+                        dist: 150,
+                        color: '#8888ff',
+                        duration: 260,
+                        elapsed: 0
                     });
                     this.damageDummy(35, '#ff1744', '⚡ SHUNPO -35');
-                    this.addPopup(this.player.x, this.player.y - 30, '👥 TÀN ẢNH SHUNPO', '#ff1744');
+                    this.addPopup(this.player.x, this.player.y - 30, '👥 TÀN ẢNH SHUNPO', '#8888ff');
+                    this.burst(this.player.x + 150, this.player.y, '#8888ff', 12);
                 } else if (index === 1) {
                     // E: Bankai - Tensa Zangetsu
                     audio.playBankai();
                     this.activeVFX.push({
-                        type: 'bankai_aura',
+                        type: 'transform_aura',
                         x: this.player.x,
                         y: this.player.y,
+                        color: '#e5484d',
                         duration: 8000,
                         elapsed: 0,
-                        color: '#ff1744'
+                        label: 'BANKAI',
+                        immune: false
                     });
-                    this.addPopup(this.player.x, this.player.y - 30, '🗡️ BANKAI (+40% TỐC CHẠY)', '#ff1744');
+                    this.burst(this.player.x, this.player.y, '#e5484d', 20);
+                    this.addPopup(this.player.x, this.player.y - 30, '🗡️ BANKAI (+40% TỐC CHẠY)', '#e5484d');
                 } else if (index === 2) {
                     // R: Mugetsu
                     audio.playMugetsu();
                     this.activeVFX.push({
-                        type: 'getsuga_demo',
+                        type: 'ultimate_nova',
                         x: this.player.x,
                         y: this.player.y,
-                        targetX: this.dummy.x + 100,
-                        targetY: this.dummy.y,
-                        color: '#000000',
-                        damage: 120,
-                        isMugetsu: true
+                        colorA: '#1a1a1a',
+                        colorB: '#e5484d',
+                        radius: 300,
+                        chargeDur: 350,
+                        elapsed: 0,
+                        fired: false
                     });
-                    this.damageDummy(120, '#ff1744', '🌑 MUGETSU -120!!');
-                    this.addPopup(this.player.x, this.player.y - 30, '🩸 PHẢN PHỆ -30 HP', '#f44336');
+                    setTimeout(() => {
+                        if (this.active) {
+                            this.dummy.shakeX = 25;
+                            this.damageDummy(120, '#e5484d', '🌑 MUGETSU -120!!');
+                            this.addPopup(this.player.x, this.player.y - 30, '🩸 PHẢN PHỆ -30 HP', '#f44336');
+                            this.burst(this.player.x, this.player.y, '#ff4d4d', 12);
+                        }
+                    }, 350);
                 }
                 break;
 
@@ -612,42 +655,52 @@ export class WeaponShowcase {
                     // Q: Manchester Smash
                     audio.playSmash();
                     this.activeVFX.push({
-                        type: 'smash_punch',
-                        x: this.dummy.x,
-                        y: this.dummy.y,
-                        color: '#00e676',
-                        life: 1.0,
-                        radius: 65
+                        type: 'jump_kick',
+                        originX: this.player.x,
+                        originY: this.player.y,
+                        targetX: this.dummy.x,
+                        targetY: this.dummy.y,
+                        color: '#4a90ff',
+                        radius: 160,
+                        duration: 750,
+                        elapsed: 0,
+                        slammed: false
                     });
-                    this.dummy.shakeX = 18;
-                    this.damageDummy(65, '#00e676', '💥 MANCHESTER SMASH -65!');
                 } else if (index === 1) {
                     // E: Full Cowling
                     audio.playFullCowling();
                     this.activeVFX.push({
-                        type: 'fullcowling_aura',
+                        type: 'lightning_aura',
                         x: this.player.x,
                         y: this.player.y,
+                        color: '#4a90ff',
                         duration: 6000,
-                        elapsed: 0,
-                        color: '#00e676'
+                        elapsed: 0
                     });
-                    this.addPopup(this.player.x, this.player.y - 30, '⚡ FULL COWLING (+50% TỐC, +30% SÁT THƯƠNG)', '#00e676');
+                    this.burst(this.player.x, this.player.y, '#4a90ff', 16);
+                    this.addPopup(this.player.x, this.player.y - 30, '⚡ FULL COWLING (+50% TỐC, +30% SÁT THƯƠNG)', '#4a90ff');
                 } else if (index === 2) {
                     // R: United States of Smash
                     audio.playUnitedStates();
                     this.activeVFX.push({
-                        type: 'smash_punch',
+                        type: 'ultimate_nova',
                         x: this.dummy.x,
                         y: this.dummy.y,
-                        color: '#ffd700',
-                        life: 1.5,
-                        radius: 95
+                        colorA: '#4a90ff',
+                        colorB: '#eaf3ff',
+                        radius: 300,
+                        chargeDur: 350,
+                        elapsed: 0,
+                        fired: false
                     });
-                    this.dummy.shakeX = 30;
-                    this.dummy.shakeY = 20;
-                    this.damageDummy(150, '#ffeb3b', '🇺🇸 UNITED STATES OF SMASH -150!!');
-                    this.addPopup(this.player.x, this.player.y - 30, '💥 PHẢN PHỆ -50 HP', '#f44336');
+                    setTimeout(() => {
+                        if (this.active) {
+                            this.dummy.shakeX = 30;
+                            this.dummy.shakeY = 20;
+                            this.damageDummy(150, '#ffd700', '🇺🇸 UNITED STATES OF SMASH -150!!');
+                            this.addPopup(this.player.x, this.player.y - 30, '💥 HY SINH -50 HP', '#f44336');
+                        }
+                    }, 350);
                 }
                 break;
 
@@ -656,30 +709,34 @@ export class WeaponShowcase {
                     // Q: Chidori
                     audio.playChidori();
                     this.activeVFX.push({
-                        type: 'spear_thrust',
-                        x1: this.player.x,
-                        y1: this.player.y,
-                        x2: this.dummy.x + 20,
-                        y2: this.dummy.y,
-                        color: '#00e5ff',
-                        life: 1.0
+                        type: 'lightning_dash',
+                        startX: this.player.x,
+                        startY: this.player.y,
+                        dist: 120,
+                        color: '#3fd0ff',
+                        duration: 260,
+                        elapsed: 0
                     });
-                    this.damageDummy(70, '#00e5ff', '⚡ CHIDORI -70!');
-                    this.addPopup(this.dummy.x, this.dummy.y - 45, '❄️ CHẬM 30% (1s)', '#00e5ff');
+                    this.damageDummy(70, '#3fd0ff', '⚡ CHIDORI -70!');
+                    this.addPopup(this.dummy.x, this.dummy.y - 45, '❄️ CHẬM 30% (1s)', '#3fd0ff');
+                    this.burst(this.dummy.x, this.dummy.y, '#3fd0ff', 12);
                 } else if (index === 1) {
                     // E: Kamui
                     audio.playKamui();
                     this.activeVFX.push({
-                        type: 'kamui_vortex',
+                        type: 'vortex_pull',
                         x: this.dummy.x,
                         y: this.dummy.y,
+                        radius: 100,
                         duration: 1500,
                         elapsed: 0,
-                        color: '#7c4dff'
+                        color: '#8a5cf0',
+                        big: false
                     });
                     setTimeout(() => {
                         if (this.active) {
-                            this.damageDummy(40, '#7c4dff', '🌀 KAMUI -40!');
+                            this.burst(this.dummy.x, this.dummy.y, '#8a5cf0', 16);
+                            this.damageDummy(40, '#8a5cf0', '🌀 KAMUI -40!');
                             this.addPopup(this.dummy.x, this.dummy.y - 45, '💫 CHOÁNG 1s', '#ffd700');
                         }
                     }, 1500);
@@ -687,55 +744,66 @@ export class WeaponShowcase {
                     // R: Susano'o Hoàn Toàn Thể
                     audio.playSusanoo();
                     this.activeVFX.push({
-                        type: 'susanoo_aura',
+                        type: 'transform_aura',
                         x: this.player.x,
                         y: this.player.y,
+                        color: '#5b7fff',
                         duration: 5000,
                         elapsed: 0,
-                        color: '#2979ff'
+                        label: "SUSANO'O",
+                        immune: true,
+                        tick: 0
                     });
-                    this.addPopup(this.player.x, this.player.y - 30, '🛡️ SUSANO\'O (BẤT TỬ 5s, XUNG KÍCH 50)', '#2979ff');
+                    this.burst(this.player.x, this.player.y, '#5b7fff', 20);
+                    this.addPopup(this.player.x, this.player.y - 30, '🛡️ SUSANO\'O (BẤT TỬ 5s, XUNG KÍCH 50)', '#5b7fff');
                 }
                 break;
 
             case 'EXCALIBUR':
                 if (index === 0) {
                     // Q: Strike Air
+                    audio.playExcalibur();
                     this.activeVFX.push({
-                        type: 'heavy_slash',
-                        x: (this.player.x + this.dummy.x) / 2,
+                        type: 'shock_ring',
+                        x: this.player.x,
                         y: this.player.y,
-                        color: '#ffffff',
-                        life: 1.0
+                        color: '#d8b34e',
+                        radius: 250,
+                        duration: 500,
+                        elapsed: 0
                     });
                     this.dummy.shakeX = 20;
-                    this.damageDummy(60, '#e0f7fa', '💨 STRIKE AIR -60 (ĐẨY LÙI 100px)');
+                    this.damageDummy(60, '#d8b34e', '💨 STRIKE AIR -60 (ĐẨY LÙI 100px)');
+                    this.burst(this.dummy.x, this.dummy.y, '#d8b34e', 14);
                 } else if (index === 1) {
                     // E: Avalon
                     audio.playHolyBarrier();
                     this.activeVFX.push({
-                        type: 'avalon_barrier',
+                        type: 'shield_buff',
                         x: this.player.x,
                         y: this.player.y,
+                        color: '#ffe9a8',
                         duration: 3000,
-                        elapsed: 0,
-                        color: '#ffd700'
+                        elapsed: 0
                     });
-                    this.addPopup(this.player.x, this.player.y - 30, '✨ AVALON (BẤT TỬ 3s & +50 HP)', '#ffd700');
+                    this.burst(this.player.x, this.player.y, '#ffe9a8', 16);
+                    this.addPopup(this.player.x, this.player.y - 30, '✨ AVALON (BẤT TỬ 3s & +50 HP)', '#ffe9a8');
                 } else if (index === 2) {
                     // R: EXCALIBUR
                     audio.playExcalibur();
                     this.activeVFX.push({
-                        type: 'excalibur_beam',
-                        x1: this.player.x,
-                        y1: this.player.y,
-                        x2: this.dummy.x + 150,
-                        y2: this.dummy.y,
-                        life: 1.0,
-                        color: '#ffd700'
+                        type: 'beam_blast',
+                        startX: this.player.x,
+                        startY: this.player.y,
+                        targetX: this.dummy.x,
+                        targetY: this.dummy.y,
+                        width: 80,
+                        length: 500,
+                        color: '#ffe066',
+                        chargeDur: 1000,
+                        elapsed: 0,
+                        fired: false
                     });
-                    this.dummy.shakeX = 25;
-                    this.damageDummy(150, '#ffd700', '⚔️ EXCALIBUR -150!!');
                 }
                 break;
 
@@ -743,46 +811,53 @@ export class WeaponShowcase {
                 if (index === 0) {
                     // Q: Triple Gate
                     audio.playBabylonGate();
-                    for (let i = 0; i < 3; i++) {
-                        setTimeout(() => {
-                            if (this.active) {
-                                this.activeVFX.push({
-                                    type: 'babylon_shot',
-                                    startX: this.player.x - 20,
-                                    startY: this.player.y - 30 + i * 30,
-                                    x: this.player.x - 20,
-                                    y: this.player.y - 30 + i * 30,
-                                    targetX: this.dummy.x,
-                                    targetY: this.dummy.y,
-                                    color: '#ffd700',
-                                    damage: 40
-                                });
-                            }
-                        }, i * 150);
+                    const count = 3;
+                    const spreadDeg = 60;
+                    const range = 260;
+                    for (let i = 0; i < count; i++) {
+                        const t = count === 1 ? 0 : (i / (count - 1)) - 0.5;
+                        const ang = (t * spreadDeg) * Math.PI / 180;
+                        this.activeVFX.push({
+                            type: 'fan_gate',
+                            startX: this.player.x,
+                            startY: this.player.y,
+                            ang: ang,
+                            range: range,
+                            color: '#c9a24b',
+                            damage: 40,
+                            duration: 450,
+                            elapsed: 0,
+                            hit: false
+                        });
                     }
                 } else if (index === 1) {
                     // E: Chains of Heaven - Enkidu
                     audio.playEnkidu();
                     this.activeVFX.push({
-                        type: 'enkidu_chains',
-                        x: this.dummy.x,
-                        y: this.dummy.y,
+                        type: 'chain_bind',
+                        startX: this.player.x,
+                        startY: this.player.y,
+                        targetX: this.dummy.x,
+                        targetY: this.dummy.y,
+                        color: '#cfd6e0',
                         duration: 2000,
-                        elapsed: 0,
-                        color: '#ffd700'
+                        elapsed: 0
                     });
-                    this.damageDummy(25, '#ffd700', '⛓️ ENKIDU -25');
-                    this.addPopup(this.dummy.x, this.dummy.y - 45, '⛓️ TRÓI CHÂN 2s', '#ffd700');
+                    this.damageDummy(25, '#cfd6e0', '⛓️ ENKIDU -25');
+                    this.addPopup(this.dummy.x, this.dummy.y - 45, '⛓️ TRÓI CHÂN 2s', '#cfd6e0');
+                    this.burst(this.dummy.x, this.dummy.y, '#cfd6e0', 12);
                 } else if (index === 2) {
                     // R: ENUMA ELISH
                     audio.playEnumaElish();
                     this.activeVFX.push({
-                        type: 'enuma_vortex',
+                        type: 'vortex_pull',
                         x: this.dummy.x,
                         y: this.dummy.y,
+                        radius: 150,
                         duration: 3000,
                         elapsed: 0,
-                        color: '#ff1744'
+                        color: '#e0483e',
+                        big: true
                     });
                     let tickCount = 0;
                     const enumaIv = setInterval(() => {
@@ -791,10 +866,12 @@ export class WeaponShowcase {
                             return;
                         }
                         tickCount++;
-                        this.damageDummy(24, '#ff1744', '🌌 VÒNG XOÁY -24');
+                        this.damageDummy(24, '#e0483e', '🌌 VÒNG XOÁY -24');
+                        this.burst(this.dummy.x, this.dummy.y, '#e0483e', 8);
                         if (tickCount >= 5) {
                             clearInterval(enumaIv);
                             this.damageDummy(200, '#ffd700', '💥 KHAI THIÊN TÍCH ĐỊA -200!!');
+                            this.burst(this.dummy.x, this.dummy.y, '#ffd700', 26);
                             this.dummy.shakeX = 30;
                         }
                     }, 500);
@@ -891,6 +968,160 @@ export class WeaponShowcase {
             } else if (v.type === 'skyfall_bolt') {
                 v.life -= 0.07;
                 if (v.life <= 0) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'crescent_wave') {
+                v.elapsed += dt;
+                const p = v.elapsed / v.duration;
+                const cx = v.startX + v.ux * v.endLen * p;
+                const cy = v.startY + v.uy * v.endLen * p;
+                const dist = Math.hypot(this.dummy.x - cx, this.dummy.y - cy);
+                if (dist < 30 && !v.hit) {
+                    v.hit = true;
+                    this.damageDummy(v.damage, v.color, '⚔️ GETSUGA TENSHOU');
+                    this.burst(this.dummy.x, this.dummy.y, v.color, 14);
+                    this.dummy.shakeX = 12;
+                }
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'dash_blink') {
+                v.elapsed += dt;
+                const p = Math.min(1, v.elapsed / v.duration);
+                this.player.x = v.startX + v.dist * p;
+                if (v.elapsed >= v.duration) {
+                    if (!v.timerSet) {
+                        v.timerSet = true;
+                        setTimeout(() => { this.player.x = v.startX; }, 200);
+                    }
+                    this.activeVFX.splice(i, 1);
+                }
+            } else if (v.type === 'punch_impact') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'jump_kick') {
+                v.elapsed += dt;
+                const p = v.elapsed / v.duration;
+                if (p >= 0.4 && !v.slammed) {
+                    v.slammed = true;
+                    this.damageDummy(65, v.color, '💥 MANCHESTER SMASH -65!');
+                    this.burst(v.targetX, v.targetY, v.color, 18);
+                    this.dummy.shakeX = 18;
+                    this.dummy.shakeY = 12;
+                }
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'lightning_dash') {
+                v.elapsed += dt;
+                const p = Math.min(1, v.elapsed / v.duration);
+                this.player.x = v.startX + v.dist * p;
+                if (v.elapsed >= v.duration) {
+                    if (!v.timerSet) {
+                        v.timerSet = true;
+                        setTimeout(() => { this.player.x = v.startX; }, 220);
+                    }
+                    this.activeVFX.splice(i, 1);
+                }
+            } else if (v.type === 'vortex_pull') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'transform_aura') {
+                v.elapsed += dt;
+                v.tick = (v.tick || 0) + dt;
+                if (v.immune && v.tick > 2000) {
+                    v.tick = 0;
+                    this.burst(this.player.x, this.player.y, v.color, 10);
+                }
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'lightning_aura') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'ultimate_nova') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.chargeDur && !v.fired) {
+                    v.fired = true;
+                    this.burst(v.x, v.y, v.colorB, 22);
+                    this.activeVFX.push({
+                        type: 'nova_wave',
+                        x: v.x,
+                        y: v.y,
+                        colorA: v.colorA,
+                        colorB: v.colorB,
+                        radius: v.radius,
+                        duration: 550,
+                        elapsed: 0
+                    });
+                }
+                if (v.elapsed >= v.chargeDur) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'nova_wave') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'shock_ring') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'shield_buff') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'beam_blast') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.chargeDur && !v.fired) {
+                    v.fired = true;
+                    this.burst(v.targetX, v.targetY, v.color, 24);
+                    this.dummy.shakeX = 25;
+                    this.dummy.shakeY = 15;
+                    this.damageDummy(150, v.color, '⚔️ EXCALIBUR -150!!');
+                    const dx = v.targetX - v.startX;
+                    const dy = v.targetY - v.startY;
+                    this.activeVFX.push({
+                        type: 'beam_laser',
+                        startX: v.startX,
+                        startY: v.startY,
+                        ang: Math.atan2(dy, dx),
+                        width: v.width,
+                        length: v.length,
+                        color: v.color,
+                        duration: 450,
+                        elapsed: 0
+                    });
+                }
+                if (v.elapsed >= v.chargeDur) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'beam_laser') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'chain_bind') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'slash_arc') {
+                v.elapsed += dt;
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'arrow_shot') {
+                v.elapsed += dt;
+                const p = Math.min(1, v.elapsed / v.duration);
+                if (p >= 0.85 && !v.hit) {
+                    v.hit = true;
+                    this.damageDummy(v.damage, v.color, `✨ BẢO CỤ -${v.damage}`);
+                    this.burst(v.targetX, v.targetY, v.color, 10);
+                }
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'fan_kunai') {
+                v.elapsed += dt;
+                const p = v.elapsed / v.duration;
+                const curX = v.startX + Math.cos(v.ang) * v.range * p;
+                const curY = v.startY + Math.sin(v.ang) * v.range * p * 0.22;
+                const dist = Math.hypot(this.dummy.x - curX, this.dummy.y - curY);
+                if (dist < 26 && !v.hit) {
+                    v.hit = true;
+                    this.damageDummy(v.damage, v.color, `🥷 KUNAI -${v.damage}`);
+                    this.burst(this.dummy.x, this.dummy.y, v.color, 8);
+                }
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
+            } else if (v.type === 'fan_gate') {
+                v.elapsed += dt;
+                const p = v.elapsed / v.duration;
+                const curX = v.startX + Math.cos(v.ang) * v.range * p;
+                const curY = v.startY + Math.sin(v.ang) * v.range * p * 0.22;
+                const dist = Math.hypot(this.dummy.x - curX, this.dummy.y - curY);
+                if (dist < 28 && !v.hit) {
+                    v.hit = true;
+                    this.damageDummy(v.damage, v.color, `✨ TAM MÔN -${v.damage}`);
+                    this.burst(this.dummy.x, this.dummy.y, v.color, 8);
+                }
+                if (v.elapsed >= v.duration) this.activeVFX.splice(i, 1);
             } else if (v.type === 'getsuga_demo') {
                 const dx = v.targetX - v.x;
                 const dy = v.targetY - v.y;
@@ -1277,6 +1508,351 @@ export class WeaponShowcase {
                 ctx.lineWidth = 3;
                 ctx.setLineDash([4, 4]);
                 ctx.strokeRect(v.x - 22, v.y - 22, 44, 44);
+                ctx.restore();
+            } else if (v.type === 'crescent_wave') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                const cx = v.startX + v.ux * v.endLen * p;
+                const cy = v.startY + v.uy * v.endLen * p;
+                ctx.translate(cx, cy);
+                ctx.rotate(Math.atan2(v.uy, v.ux));
+                ctx.strokeStyle = v.color;
+                ctx.lineWidth = 6;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(0, 0, 22, Math.PI * 0.65, Math.PI * 1.35);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(26, 26, 26, 0.7)';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, 26, Math.PI * 0.65, Math.PI * 1.35);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'dash_blink') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                for (let j = 0; j < 5; j++) {
+                    const pp = Math.max(0, p - j * 0.06);
+                    const ax = v.startX + v.dist * pp;
+                    ctx.beginPath();
+                    ctx.fillStyle = v.color;
+                    ctx.globalAlpha = Math.max(0, 0.3 - j * 0.05);
+                    ctx.arc(ax, v.startY, 12 - j, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 0.85;
+                ctx.strokeStyle = v.color;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 16;
+                ctx.beginPath();
+                ctx.moveTo(v.startX, v.startY);
+                ctx.lineTo(v.startX + v.dist * p, v.startY);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'punch_impact') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                ctx.translate(v.x + p * 20, v.y);
+                ctx.strokeStyle = v.color;
+                ctx.globalAlpha = 0.9 * (1 - p);
+                ctx.lineWidth = 5;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 18;
+                ctx.beginPath();
+                ctx.arc(0, 0, 14 + p * 10, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'jump_kick') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                if (p < 0.4) {
+                    const rise = Math.sin((p / 0.4) * Math.PI) * 44;
+                    const curX = v.originX + (v.targetX - v.originX) * (p / 0.4);
+                    ctx.beginPath();
+                    ctx.fillStyle = v.color;
+                    ctx.shadowColor = v.color;
+                    ctx.shadowBlur = 16;
+                    ctx.arc(curX, v.originY - rise, 9, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    const sp = (p - 0.4) / 0.6;
+                    ctx.translate(v.targetX, v.targetY);
+                    ctx.strokeStyle = v.color;
+                    ctx.globalAlpha = 0.9 * (1 - sp);
+                    ctx.lineWidth = 6;
+                    ctx.shadowColor = v.color;
+                    ctx.shadowBlur = 24;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, v.radius * sp, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            } else if (v.type === 'lightning_dash') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                const curX = v.startX + v.dist * p;
+                ctx.strokeStyle = v.color;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.moveTo(v.startX, v.startY);
+                let cx = v.startX;
+                while (cx < curX - 8) {
+                    cx += 8;
+                    ctx.lineTo(cx, v.startY + (Math.random() - 0.5) * 10);
+                }
+                ctx.lineTo(curX, v.startY);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'vortex_pull') {
+                ctx.save();
+                ctx.translate(v.x, v.y);
+                const p = Math.min(1, v.elapsed / v.duration);
+                for (let k = 0; k < 3; k++) {
+                    const rot = v.elapsed * (v.big ? -0.014 : 0.014) + k * (Math.PI * 2 / 3);
+                    const r = v.radius * (1 - p * 0.7);
+                    ctx.beginPath();
+                    ctx.strokeStyle = v.color;
+                    ctx.globalAlpha = 0.65;
+                    ctx.lineWidth = v.big ? 4 : 3;
+                    ctx.shadowColor = v.color;
+                    ctx.shadowBlur = 18;
+                    ctx.arc(0, 0, Math.max(1, r), rot, rot + 1.6);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            } else if (v.type === 'transform_aura') {
+                ctx.save();
+                ctx.translate(this.player.x, this.player.y);
+                const pulse = 0.55 + 0.35 * Math.sin(v.elapsed * 0.006);
+                ctx.fillStyle = v.color;
+                ctx.globalAlpha = 0.15 * pulse;
+                ctx.beginPath();
+                ctx.arc(0, 0, v.immune ? 46 : 34, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.globalAlpha = 0.6;
+                ctx.lineWidth = 2;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 22;
+                ctx.beginPath();
+                ctx.arc(0, 0, v.immune ? 38 : 28, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'lightning_aura') {
+                ctx.save();
+                ctx.translate(this.player.x, this.player.y);
+                ctx.strokeStyle = v.color;
+                ctx.globalAlpha = 0.6 + 0.3 * Math.sin(v.elapsed * 0.03);
+                ctx.lineWidth = 2.5;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 16;
+                for (let k = 0; k < 4; k++) {
+                    const ang = v.elapsed * 0.01 + k * (Math.PI / 2);
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(ang) * 20, Math.sin(ang) * 20);
+                    ctx.lineTo(Math.cos(ang + 0.3) * 32, Math.sin(ang + 0.3) * 32);
+                    ctx.lineTo(Math.cos(ang + 0.1) * 26, Math.sin(ang + 0.1) * 40);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            } else if (v.type === 'ultimate_nova') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.chargeDur);
+                ctx.translate(v.x, v.y);
+                ctx.fillStyle = v.colorB;
+                ctx.globalAlpha = 0.6 * p;
+                ctx.shadowColor = v.colorB;
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(0, 0, 10 + p * 14, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else if (v.type === 'nova_wave') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                ctx.translate(v.x, v.y);
+                ctx.strokeStyle = v.colorB;
+                ctx.globalAlpha = 0.9 * (1 - p);
+                ctx.lineWidth = 7;
+                ctx.shadowColor = v.colorB;
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.arc(0, 0, v.radius * p, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = v.colorA;
+                ctx.globalAlpha = 0.5 * (1 - p);
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, v.radius * p * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'shock_ring') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                ctx.translate(v.x, v.y);
+                ctx.strokeStyle = v.color;
+                ctx.globalAlpha = 0.85 * (1 - p);
+                ctx.lineWidth = 5;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 22;
+                ctx.beginPath();
+                ctx.arc(0, 0, v.radius * p, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'shield_buff') {
+                ctx.save();
+                ctx.translate(this.player.x, this.player.y);
+                const pulse = 0.6 + 0.3 * Math.sin(v.elapsed * 0.008);
+                ctx.fillStyle = v.color;
+                ctx.globalAlpha = 0.16 * pulse;
+                ctx.beginPath();
+                ctx.arc(0, 0, 32, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.globalAlpha = 0.8;
+                ctx.lineWidth = 2;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 22;
+                ctx.beginPath();
+                ctx.arc(0, 0, 26, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'beam_blast') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.chargeDur);
+                ctx.translate(v.startX, v.startY);
+                ctx.fillStyle = v.color;
+                ctx.globalAlpha = 0.6 * p;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(0, 0, 6 + p * 16, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else if (v.type === 'beam_laser') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                const len = v.length * Math.min(1, p * 3);
+                ctx.translate(v.startX, v.startY);
+                ctx.rotate(v.ang);
+                const grad = ctx.createLinearGradient(0, 0, len, 0);
+                grad.addColorStop(0, `rgba(255, 255, 255, ${0.95 * (1 - p * 0.4)})`);
+                grad.addColorStop(1, 'rgba(255, 215, 0, 0.15)');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 30;
+                ctx.fillRect(0, -v.width / 2 * (1 - p * 0.15), len, v.width * (1 - p * 0.15));
+                ctx.restore();
+            } else if (v.type === 'chain_bind') {
+                ctx.save();
+                ctx.strokeStyle = v.color;
+                ctx.globalAlpha = 0.7;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 4]);
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.moveTo(v.startX, v.startY);
+                ctx.lineTo(v.targetX, v.targetY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.translate(v.targetX, v.targetY);
+                const pulse = 0.5 + 0.5 * Math.sin(v.elapsed * 0.02);
+                ctx.strokeStyle = v.color;
+                ctx.globalAlpha = 0.6 + 0.3 * pulse;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 20 + 3 * pulse, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'slash_arc') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                const a0 = v.faceAngle - (v.arcDeg * Math.PI / 180) / 2;
+                const a1 = a0 + (v.arcDeg * Math.PI / 180) * p;
+                ctx.translate(v.x, v.y);
+                ctx.strokeStyle = v.color;
+                ctx.globalAlpha = 0.9 * (1 - p * 0.3);
+                ctx.lineWidth = 4;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 16;
+                ctx.beginPath();
+                ctx.arc(0, 0, v.radius, a0, a1);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'arrow_shot') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                const dx = v.targetX - v.startX;
+                const dy = v.targetY - v.startY;
+                const len = Math.hypot(dx, dy) || 1;
+                const ux = dx / len;
+                const uy = dy / len;
+                const cx = v.startX + ux * len * p;
+                const cy = v.startY + uy * len * p;
+                // Ripple portal at start
+                ctx.strokeStyle = '#ffd700';
+                ctx.globalAlpha = 0.7 * (1 - p);
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(v.startX, v.startY, 4, 12, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                // Weapon projectile
+                ctx.strokeStyle = v.color;
+                ctx.globalAlpha = 0.85;
+                ctx.lineWidth = 2.5;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 12;
+                ctx.beginPath();
+                ctx.moveTo(v.startX + ux * len * Math.max(0, p - 0.18), v.startY + uy * len * Math.max(0, p - 0.18));
+                ctx.lineTo(cx, cy);
+                ctx.stroke();
+                ctx.fillStyle = v.color;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else if (v.type === 'fan_kunai') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                const cx = v.startX + Math.cos(v.ang) * v.range * p;
+                const cy = v.startY + Math.sin(v.ang) * v.range * p * 0.22;
+                ctx.translate(cx, cy);
+                ctx.rotate(v.elapsed * 0.02);
+                ctx.strokeStyle = v.color;
+                ctx.globalAlpha = 0.9;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.moveTo(-9, 0);
+                ctx.lineTo(9, 0);
+                ctx.stroke();
+                ctx.restore();
+            } else if (v.type === 'fan_gate') {
+                ctx.save();
+                const p = Math.min(1, v.elapsed / v.duration);
+                const cx = v.startX + Math.cos(v.ang) * v.range * p;
+                const cy = v.startY + Math.sin(v.ang) * v.range * p * 0.22;
+                ctx.translate(cx, cy);
+                ctx.rotate(v.ang);
+                ctx.strokeStyle = v.color;
+                ctx.globalAlpha = 0.9;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = v.color;
+                ctx.shadowBlur = 12;
+                ctx.beginPath();
+                ctx.moveTo(-12, 0);
+                ctx.lineTo(12, 0);
+                ctx.stroke();
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(12, 0, 2.5, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.restore();
             } else if (v.type === 'enuma_vortex') {
                 ctx.save();
