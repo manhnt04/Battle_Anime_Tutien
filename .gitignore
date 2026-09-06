@@ -1,4 +1,4 @@
-﻿# OS metadata
+# OS metadata
 .DS_Store
 Thumbs.db
 Desktop.ini
@@ -11,3 +11,7 @@ Desktop.ini
 
 # Logs & temp
 *.log
+
+# Vercel
+.vercel
+
