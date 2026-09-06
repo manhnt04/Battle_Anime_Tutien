@@ -9,6 +9,8 @@
     <title>Võ Lâm Sinh Tồn - Cửu Kiếm Quy Nhất</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
     <link rel="stylesheet" href="css/style.css">
+    <!-- WebRTC P2P Realtime Multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
     <!-- Screen Transition Overlay (Fade In / Out) -->
@@ -104,43 +106,72 @@
             </div>
         </div>
 
-        <!-- Custom Room Screen (Tạo Phòng Tùy Chỉnh) -->
+        <!-- Real Online Room Screen (Tạo Phòng Online & Bản Đồ Tự Do) -->
         <div id="room-screen" class="screen">
             <div class="menu-card room-card">
                 <div class="room-header">
-                    <span class="room-badge">🏛️ ĐẠI HỘI TÙY CHỈNH</span>
-                    <h2>TẠO PHÒNG VÕ ĐÀI</h2>
-                    <p class="room-desc">Thiết lập quy mô quần hùng và quy tắc chiến trường giang hồ...</p>
+                    <span class="room-badge">🌐 ĐẠI HỘI ONLINE (P2P REALTIME)</span>
+                    <h2>PHÒNG VÕ ĐÀI TRỰC TUYẾN</h2>
+                    <p class="room-desc">Bản đồ mở rộng toàn cảnh 3000x3000px, không thu bo, hồi sinh liên tục!</p>
                 </div>
 
-                <div class="room-settings">
-                    <div class="setting-row">
-                        <label for="room-name">Tên Võ Đài (Tên Phòng)</label>
-                        <input type="text" id="room-name" value="Hắc Mộc Nhai #6868" maxlength="24" class="room-input">
+                <!-- Mode Switcher Tabs: Tạo Phòng vs Vào Phòng -->
+                <div class="room-tabs">
+                    <button id="tab-btn-create" class="room-tab-btn active">🏛️ TẠO PHÒNG MỚI</button>
+                    <button id="tab-btn-join" class="room-tab-btn">🚪 VÀO PHÒNG BẠN BÈ</button>
+                </div>
+
+                <!-- Host Panel -->
+                <div id="room-panel-create" class="room-panel active">
+                    <div class="room-settings">
+                        <div class="setting-row">
+                            <label for="room-code-display">Mã Phòng Của Bạn</label>
+                            <div class="room-code-box">
+                                <span id="room-code-text" class="room-code-text">VLST-6868</span>
+                                <button id="btn-copy-code" class="btn btn-secondary btn-sm" title="Sao chép mã phòng">📋 MÃ</button>
+                            </div>
+                        </div>
+
+                        <div class="setting-row">
+                            <label>Link Trực Tiếp Mời Bạn Bè</label>
+                            <div class="room-link-box">
+                                <input type="text" id="room-link-input" readonly value="" class="room-link-input">
+                                <button id="btn-copy-link" class="btn btn-warning btn-sm">📋 SAO CHÉP LINK</button>
+                            </div>
+                        </div>
+
+                        <div class="setting-row">
+                            <label for="room-bot-count">Hiệp Khách Tập Luyện (Bot)</label>
+                            <select id="room-bot-count" class="room-select">
+                                <option value="0">Không Có Bot (Chỉ Người Thật PvP)</option>
+                                <option value="5" selected>5 Hiệp Khách Tập Luyện</option>
+                                <option value="9">9 Hiệp Khách (Đông Đúc)</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="setting-row">
-                        <label for="room-enemies">Quy Mô Hiệp Khách</label>
-                        <select id="room-enemies" class="room-select">
-                            <option value="5">6 Người (Hỗn Chiến Nhanh - 5 Địch)</option>
-                            <option value="9" selected>10 Người (Đại Hội Chuẩn Mực - 9 Địch)</option>
-                            <option value="14">15 Người (Quần Hùng Trục Lộc - 14 Địch)</option>
-                        </select>
-                    </div>
-
-                    <div class="setting-row">
-                        <label for="room-difficulty">Độ Khó Cao Thủ</label>
-                        <select id="room-difficulty" class="room-select">
-                            <option value="easy">Tập Sự (Dễ - Sát thương giảm 30%)</option>
-                            <option value="normal" selected>Hiệp Khách (Cân Bằng Tiêu Chuẩn)</option>
-                            <option value="hard">Sát Thủ Giang Hồ (Địa Ngục - Rất Hung Hãn)</option>
-                        </select>
+                    <div class="menu-buttons room-buttons">
+                        <button id="btn-host-start" class="btn btn-primary">🏛️ TẠO PHÒNG & KHAI CHIẾN</button>
+                        <button id="btn-room-back" class="btn btn-secondary">TRỞ VỀ SẢNH</button>
                     </div>
                 </div>
 
-                <div class="menu-buttons room-buttons">
-                    <button id="btn-room-start" class="btn btn-primary">KHAI CHIẾN (VÀO TRẬN)</button>
-                    <button id="btn-room-back" class="btn btn-secondary">TRỞ VỀ SẢNH CHÍNH</button>
+                <!-- Join Panel -->
+                <div id="room-panel-join" class="room-panel" style="display: none;">
+                    <div class="room-settings">
+                        <div class="setting-row">
+                            <label for="input-join-code">Nhập Mã Phòng hoặc Dán Link</label>
+                            <input type="text" id="input-join-code" placeholder="Ví dụ: 6868 hoặc dán link phòng..." class="room-input">
+                        </div>
+                        <div class="room-tip">
+                            💡 <em>Mẹo: Bạn có thể click trực tiếp link mời bạn bè gửi qua Zalo/FB để vào phòng ngay!</em>
+                        </div>
+                    </div>
+
+                    <div class="menu-buttons room-buttons">
+                        <button id="btn-guest-join" class="btn btn-primary">🚪 VÀO PHÒNG CHIẾN ĐẤU</button>
+                        <button id="btn-join-back" class="btn btn-secondary">TRỞ VỀ SẢNH</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -152,11 +183,11 @@
                 <div class="controls-list">
                     <div class="control-row"><span class="key-badge">W A S D</span><span>Khinh công / Di chuyển</span></div>
                     <div class="control-row"><span class="key-badge">CHUỘT</span><span>Định hướng kiếm ý & tầm nhìn</span></div>
-                    <div class="control-row"><span class="key-badge">CHUỘT TRÁI</span><span>Đánh thường / Xuất chiêu / Trảm kích</span></div>
+                    <div class="control-row"><span class="key-badge">SPACE / CHUỘT TRÁI</span><span>Đánh thường / Trảm kích / Xuất chiêu</span></div>
                     <div class="control-row"><span class="key-badge">CHUỘT PHẢI</span><span>Thần tốc Cận chiến</span></div>
-                    <div class="control-row"><span class="key-badge">Q</span><span>Kỹ năng Võ học 1 (Thức Thứ Nhất)</span></div>
-                    <div class="control-row"><span class="key-badge">E</span><span>Kỹ năng Võ học 2 (Thức Thứ Hai)</span></div>
-                    <div class="control-row"><span class="key-badge">R</span><span>Tuyệt Kỹ Trấn Phái / Vận khí nạp tiễn</span></div>
+                    <div class="control-row"><span class="key-badge">J</span><span>Kỹ năng Võ học 1 (Thức Thứ Nhất)</span></div>
+                    <div class="control-row"><span class="key-badge">K</span><span>Kỹ năng Võ học 2 (Thức Thứ Hai)</span></div>
+                    <div class="control-row"><span class="key-badge">L</span><span>Tuyệt Kỹ Trấn Phái (Thức Thứ Ba / Ultimate)</span></div>
                     <div class="control-row"><span class="key-badge">F</span><span>Nhặt Đan dược, Bảo rương Kỳ bảo</span></div>
                     <div class="control-row"><span class="key-badge">1 - 5</span><span>Hoán đổi Thần binh bảo vật</span></div>
                     <div class="control-row"><span class="key-badge">ESC</span><span>Định tâm tạm dừng / Tiếp tục</span></div>
@@ -282,20 +313,20 @@
                     </div>
                 </div>
 
-                <!-- HUD Skill Bar (Q, E, R) -->
+                <!-- HUD Skill Bar (J, K, L) -->
                 <div id="hud-skill-bar" class="hud-skill-bar">
-                    <div id="hud-skill-0" class="hud-skill-slot" data-key="Q">
-                        <div class="hud-skill-key">Q</div>
+                    <div id="hud-skill-0" class="hud-skill-slot" data-key="J">
+                        <div class="hud-skill-key">J</div>
                         <div id="hud-skill-name-0" class="hud-skill-name">CHIÊU 1</div>
                         <div id="hud-skill-cd-0" class="hud-skill-cd"></div>
                     </div>
-                    <div id="hud-skill-1" class="hud-skill-slot" data-key="E">
-                        <div class="hud-skill-key">E</div>
+                    <div id="hud-skill-1" class="hud-skill-slot" data-key="K">
+                        <div class="hud-skill-key">K</div>
                         <div id="hud-skill-name-1" class="hud-skill-name">CHIÊU 2</div>
                         <div id="hud-skill-cd-1" class="hud-skill-cd"></div>
                     </div>
-                    <div id="hud-skill-2" class="hud-skill-slot" data-key="R">
-                        <div class="hud-skill-key">R</div>
+                    <div id="hud-skill-2" class="hud-skill-slot" data-key="L">
+                        <div class="hud-skill-key">L</div>
                         <div id="hud-skill-name-2" class="hud-skill-name">TUYỆT KỸ</div>
                         <div id="hud-skill-cd-2" class="hud-skill-cd"></div>
                     </div>

@@ -14,6 +14,7 @@ import { LootManager } from './loot.js';
 import { ParticleSystem } from './particles.js';
 import { audio } from './audio.js';
 import { AnimeShaderManager, AdditiveVFXRenderer } from './vfx.js';
+import { NetworkManager } from './multiplayer.js';
 
 export class Camera {
     constructor(width, height) {
@@ -371,6 +372,11 @@ export class Game {
         this.airdrops = [];
         this.airdropTimer = 35000;
         this.playerZoneTimer = 0;
+        this.remotePlayers = new Map();
+        this.isRoomMode = false;
+        this.isRoomGuest = false;
+        this.respawnTimer = 0;
+        this.networkManager = new NetworkManager(this);
         this.input = {
             keys: {},
             mouse: { x: null, y: null, down: false, rightDown: false },
@@ -558,23 +564,40 @@ export class Game {
                     const slot = parseInt(e.key) - 1;
                     if (this.player) this.player.inventory.switchToSlot(slot);
                 }
-                if (e.key.toLowerCase() === 'q') {
-                    this.playerUseSkill(0);
+
+                // Spacebar: Normal Attack (Đánh thường)
+                if (e.code === 'Space' || e.key === ' ') {
+                    e.preventDefault();
+                    this.playerShoot();
+                    if (this.networkManager) this.networkManager.sendLocalAction('space_attack');
                 }
-                if (e.key.toLowerCase() === 'e') {
+
+                // Skill 1: J (hoặc Q)
+                if (e.key.toLowerCase() === 'j' || e.key.toLowerCase() === 'q') {
+                    this.playerUseSkill(0);
+                    if (this.networkManager) this.networkManager.sendLocalAction('skill', { index: 0 });
+                }
+
+                // Skill 2: K (hoặc E)
+                if (e.key.toLowerCase() === 'k' || e.key.toLowerCase() === 'e') {
                     const weapon = this.player?.inventory?.getCurrentWeapon();
                     if (weapon && weapon.skills && weapon.skills[1] && this.player.canUseSkill(1)) {
                         this.playerUseSkill(1);
+                        if (this.networkManager) this.networkManager.sendLocalAction('skill', { index: 1 });
                     }
                 }
-                if (e.key.toLowerCase() === 'r') {
+
+                // Skill 3 (Tuyệt Kỹ): L (hoặc R)
+                if (e.key.toLowerCase() === 'l' || e.key.toLowerCase() === 'r') {
                     const weapon = this.player?.inventory?.getCurrentWeapon();
                     if (weapon && weapon.skills && weapon.skills[2] && this.player.canUseSkill(2)) {
                         this.playerUseSkill(2);
+                        if (this.networkManager) this.networkManager.sendLocalAction('skill', { index: 2 });
                     } else if (this.player) {
                         this.player.inventory.reload();
                     }
                 }
+
                 if (e.key.toLowerCase() === 'f') {
                     this.tryPickup();
                 }
@@ -598,8 +621,14 @@ export class Game {
             if (e.button === 0) this.input.mouse.down = true;
             if (e.button === 2) this.input.mouse.rightDown = true;
             if (this.state === 'playing') {
-                if (e.button === 0) this.playerShoot();
-                if (e.button === 2) this.playerMelee();
+                if (e.button === 0) {
+                    this.playerShoot();
+                    if (this.networkManager) this.networkManager.sendLocalAction('shoot');
+                }
+                if (e.button === 2) {
+                    this.playerMelee();
+                    if (this.networkManager) this.networkManager.sendLocalAction('melee');
+                }
             }
         });
 
@@ -1011,6 +1040,19 @@ export class Game {
         this.playerZoneTimer = 0;
         this.particles.clear();
         this.safeZone = new SafeZone();
+        if (this.isRoomMode) {
+            this.safeZone.radius = 999999;
+            this.safeZone.startRadius = 999999;
+            this.safeZone.targetRadius = 999999;
+            this.safeZone.damage = 0;
+            this.safeZone.isInside = () => true;
+            this.safeZone.update = () => {};
+            this.safeZone.draw = () => {};
+            this.safeZone.drawPixi = (g) => { if (g) g.clear(); };
+            if (this.isRoomGuest) {
+                this.enemies = [];
+            }
+        }
         this.gameTime = 0;
         this.state = 'playing';
         this.lastTime = performance.now();
@@ -1047,6 +1089,11 @@ export class Game {
         if (this.player && this.player.alive) list.push(this.player);
         for (let i = 0; i < this.enemies.length; i++) {
             if (this.enemies[i].alive) list.push(this.enemies[i]);
+        }
+        if (this.remotePlayers) {
+            for (const rp of this.remotePlayers.values()) {
+                if (rp && rp.alive) list.push(rp);
+            }
         }
         return list;
     }
@@ -1097,6 +1144,9 @@ export class Game {
 
         const res = this.player.useSkill(index, targetPoint, this);
         if (res) {
+            if (this.networkManager) {
+                this.networkManager.sendLocalAction('skill', { index, targetPoint, angle: this.player.angle });
+            }
             audio.playShoot('KIEM_KHI');
             if (this.screenShakeEnabled) {
                 this.camera.addShake(index === 2 ? 10 : 4);
@@ -1443,6 +1493,15 @@ export class Game {
             }
         }
 
+        // Update remote players
+        if (this.remotePlayers) {
+            for (const rp of this.remotePlayers.values()) {
+                if (rp.alive) {
+                    rp.update(null, this.map, dt);
+                }
+            }
+        }
+
         const targets = this.getTargets();
 
         // Update skill zones (fire ring, hell zone, etc.)
@@ -1626,6 +1685,30 @@ export class Game {
             killer.kills++;
         }
 
+        if (this.isRoomMode) {
+            if (victim === this.player) {
+                if (window.ui && typeof window.ui.addNotification === 'function') {
+                    window.ui.addNotification('Ngươi đã trọng thương! Đang vận công hồi sinh sau 3 giây...', 'warning');
+                }
+                setTimeout(() => {
+                    if (this.state === 'playing' && this.player) {
+                        const spawn = this.map.getRandomSpawnPoint(CONSTANTS.PLAYER_RADIUS, 0);
+                        this.player.x = spawn.x;
+                        this.player.y = spawn.y;
+                        this.player.health = this.player.maxHealth;
+                        this.player.armor = 50;
+                        this.player.alive = true;
+                        this.player.buffs = { stun: 0, bladeShield: 0, bloodAura: 0, speedBoost: 0, stealth: 0 };
+                        if (this.particles) this.particles.heal(this.player.x, this.player.y);
+                        if (window.ui && typeof window.ui.addNotification === 'function') {
+                            window.ui.addNotification('✨ Ngươi đã niết bàn hồi sinh! Tiếp tục chiến đấu!', 'gold');
+                        }
+                    }
+                }, 3000);
+            }
+            return;
+        }
+
         if (victim === this.player) {
             const place = this.getAliveCount() + 1;
             setTimeout(() => {
@@ -1636,6 +1719,7 @@ export class Game {
     }
 
     checkWinCondition() {
+        if (this.isRoomMode) return;
         const alive = this.getAliveCount();
         this.playersAlive = alive;
 
@@ -1717,6 +1801,18 @@ export class Game {
                     enemy.updatePixiView(inLOS);
                 } else if (enemy.view) {
                     enemy.view.visible = false;
+                }
+            }
+
+            // Remote Players
+            if (this.remotePlayers) {
+                for (const rp of this.remotePlayers.values()) {
+                    if (rp.alive) {
+                        const inLOS = player && player.alive ? this.map.hasLineOfSight(player.x, player.y, rp.x, rp.y) : true;
+                        rp.updatePixiView(inLOS);
+                    } else if (rp.view) {
+                        rp.view.visible = false;
+                    }
                 }
             }
 
@@ -1822,6 +1918,18 @@ export class Game {
                 const inLOS = player && player.alive ? this.map.hasLineOfSight(player.x, player.y, enemy.x, enemy.y) : true;
                 if (inLOS) {
                     enemy.draw(ctx, renderCam);
+                }
+            }
+        }
+
+        // Draw remote players
+        if (this.remotePlayers) {
+            for (const rp of this.remotePlayers.values()) {
+                if (rp.alive) {
+                    const inLOS = player && player.alive ? this.map.hasLineOfSight(player.x, player.y, rp.x, rp.y) : true;
+                    if (inLOS) {
+                        rp.draw(ctx, renderCam);
+                    }
                 }
             }
         }

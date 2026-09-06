@@ -22,42 +22,190 @@ export class UI {
     setupEventListeners() {
         // Main menu
         document.getElementById('btn-play').addEventListener('click', () => {
+            this.game.isRoomMode = false;
+            this.game.isRoomGuest = false;
             this.game.customEnemyCount = undefined;
             this.game.customDifficulty = undefined;
             this.enterLobby();
         });
 
+        // Room Management & Realtime Online
+        let activeRoomCode = '6868';
+        const generateRoomCode = () => {
+            const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
+            activeRoomCode = randomCode;
+            const codeEl = document.getElementById('room-code-text');
+            const linkEl = document.getElementById('room-link-input');
+            if (codeEl) codeEl.textContent = `VLST-${randomCode}`;
+            if (linkEl) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('room', randomCode);
+                linkEl.value = url.toString();
+            }
+        };
+
         const btnCreateRoom = document.getElementById('btn-create-room');
         if (btnCreateRoom) {
-            btnCreateRoom.addEventListener('click', () => this.showScreen('room-screen'));
+            btnCreateRoom.addEventListener('click', () => {
+                generateRoomCode();
+                this.showScreen('room-screen');
+            });
         }
 
+        // Tab Switching in Room Screen
+        const tabBtnCreate = document.getElementById('tab-btn-create');
+        const tabBtnJoin = document.getElementById('tab-btn-join');
+        const panelCreate = document.getElementById('room-panel-create');
+        const panelJoin = document.getElementById('room-panel-join');
+
+        if (tabBtnCreate && tabBtnJoin && panelCreate && panelJoin) {
+            tabBtnCreate.addEventListener('click', () => {
+                tabBtnCreate.classList.add('active');
+                tabBtnJoin.classList.remove('active');
+                panelCreate.style.display = 'block';
+                panelJoin.style.display = 'none';
+            });
+
+            tabBtnJoin.addEventListener('click', () => {
+                tabBtnJoin.classList.add('active');
+                tabBtnCreate.classList.remove('active');
+                panelJoin.style.display = 'block';
+                panelCreate.style.display = 'none';
+            });
+        }
+
+        // Copy Room Code Button
+        const btnCopyCode = document.getElementById('btn-copy-code');
+        if (btnCopyCode) {
+            btnCopyCode.addEventListener('click', () => {
+                const codeToCopy = `VLST-${activeRoomCode}`;
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(codeToCopy).then(() => {
+                        this.addNotification(`📋 Đã sao chép mã phòng: [${codeToCopy}]!`, 'gold');
+                    }).catch(() => {
+                        this.addNotification(`Mã phòng của bạn: [${codeToCopy}]`, 'info');
+                    });
+                }
+            });
+        }
+
+        // Copy Room Link Button
+        const btnCopyLink = document.getElementById('btn-copy-link');
+        const roomLinkInput = document.getElementById('room-link-input');
+        if (btnCopyLink) {
+            btnCopyLink.addEventListener('click', () => {
+                const link = roomLinkInput ? roomLinkInput.value : `${window.location.origin}/?room=${activeRoomCode}`;
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(link).then(() => {
+                        this.addNotification('📋 Đã sao chép link mời! Gửi link này cho bạn bè để cùng chơi!', 'gold');
+                    }).catch(() => {
+                        if (roomLinkInput) {
+                            roomLinkInput.select();
+                            document.execCommand('copy');
+                            this.addNotification('📋 Đã sao chép link mời vào phòng!', 'gold');
+                        }
+                    });
+                }
+            });
+        }
+
+        // Host Starts Room
+        const btnHostStart = document.getElementById('btn-host-start');
+        if (btnHostStart) {
+            btnHostStart.addEventListener('click', () => {
+                const botSelect = document.getElementById('room-bot-count');
+                const botCount = botSelect ? parseInt(botSelect.value, 10) : 5;
+
+                this.game.isRoomMode = true;
+                this.game.isRoomGuest = false;
+                this.game.customEnemyCount = botCount;
+                this.game.customDifficulty = 'normal';
+
+                if (this.game.networkManager) {
+                    this.game.networkManager.createRoom(
+                        activeRoomCode,
+                        (code) => {
+                            this.addNotification(`🏛️ Đã mở phòng online [${code}] thành công!`, 'gold');
+                        },
+                        (err) => {
+                            this.addNotification(`⚠️ WebRTC: ${err}`, 'warning');
+                        }
+                    );
+                }
+
+                this.fadeTransition(() => {
+                    this.startGame();
+                    this.addNotification(`🏛️ PHÒNG ONLINE: [VLST-${activeRoomCode}] (${botCount} Bot) - BẢN ĐỒ TỰ DO!`, 'gold');
+                });
+            });
+        }
+
+        // Guest Joins Room
+        const btnGuestJoin = document.getElementById('btn-guest-join');
+        const inputJoinCode = document.getElementById('input-join-code');
+        if (btnGuestJoin) {
+            btnGuestJoin.addEventListener('click', () => {
+                let rawVal = inputJoinCode ? inputJoinCode.value.trim() : '';
+                if (!rawVal) {
+                    this.addNotification('Vui lòng nhập mã phòng hoặc dán link mời!', 'warning');
+                    return;
+                }
+
+                // Extract room code if user pasted a full URL
+                const urlMatch = rawVal.match(/[?&]room=([^&#]+)/);
+                const joinCode = urlMatch ? urlMatch[1] : rawVal.replace(/^VLST-/i, '').trim();
+
+                this.game.isRoomMode = true;
+                this.game.isRoomGuest = true;
+                this.game.customEnemyCount = 0; // Guest uses pure multiplayer sync without local bot mismatch
+
+                if (this.game.networkManager) {
+                    this.game.networkManager.joinRoom(
+                        joinCode,
+                        (code) => {
+                            this.addNotification(`⚔️ Đã kết nối vào phòng [${code}]!`, 'gold');
+                        },
+                        (err) => {
+                            this.addNotification(`Không thể kết nối phòng: ${err}`, 'error');
+                        }
+                    );
+                }
+
+                this.fadeTransition(() => {
+                    this.startGame();
+                    this.addNotification(`🚪 TIẾN NHẬP PHÒNG ONLINE: [${joinCode}] - BẢN ĐỒ MỞ!`, 'gold');
+                });
+            });
+        }
+
+        // Back buttons
         const btnRoomBack = document.getElementById('btn-room-back');
         if (btnRoomBack) {
             btnRoomBack.addEventListener('click', () => this.showScreen('main-menu'));
         }
-
-        const btnRoomStart = document.getElementById('btn-room-start');
-        if (btnRoomStart) {
-            btnRoomStart.addEventListener('click', () => {
-                const enemiesSelect = document.getElementById('room-enemies');
-                const diffSelect = document.getElementById('room-difficulty');
-                const roomNameInput = document.getElementById('room-name');
-                
-                const enemyCount = enemiesSelect ? parseInt(enemiesSelect.value, 10) : 9;
-                const difficulty = diffSelect ? diffSelect.value : 'normal';
-                const roomName = roomNameInput ? roomNameInput.value : 'Hắc Mộc Nhai';
-
-                this.game.customEnemyCount = enemyCount;
-                this.game.customDifficulty = difficulty;
-                this.game.customRoomName = roomName;
-
-                this.fadeTransition(() => {
-                    this.startGame();
-                    this.addNotification(`⚔️ KHỞI TRANH: [${roomName}] (${enemyCount + 1} Hiệp Khách)!`, 'gold');
-                });
-            });
+        const btnJoinBack = document.getElementById('btn-join-back');
+        if (btnJoinBack) {
+            btnJoinBack.addEventListener('click', () => this.showScreen('main-menu'));
         }
+
+        // Check if user visited via direct invite URL (?room=CODE)
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const invitedRoom = urlParams.get('room');
+            if (invitedRoom) {
+                if (inputJoinCode) inputJoinCode.value = invitedRoom;
+                if (tabBtnJoin && panelJoin && tabBtnCreate && panelCreate) {
+                    tabBtnJoin.classList.add('active');
+                    tabBtnCreate.classList.remove('active');
+                    panelJoin.style.display = 'block';
+                    panelCreate.style.display = 'none';
+                }
+                this.showScreen('room-screen');
+                setTimeout(() => {
+                    this.addNotification(`📩 Bạn nhận được lời mời vào phòng [${invitedRoom}]! Nhấn VÀO PHÒNG để tham chiến.`, 'gold');
+                }, 500);
+            }
+        } catch (e) {}
 
         const btnShowcase = document.getElementById('btn-showcase');
         if (btnShowcase) {
@@ -430,6 +578,11 @@ export class UI {
 
     quitToMenu() {
         this.clearLobbyTimers();
+        if (this.game.networkManager) {
+            this.game.networkManager.disconnect();
+        }
+        this.game.isRoomMode = false;
+        this.game.isRoomGuest = false;
         this.game.state = 'menu';
         this.showScreen('main-menu');
     }
@@ -501,23 +654,35 @@ export class UI {
             this.addNotification(`⚔️ ĐÃ TRẢM SÁT CAO THỦ THỨ ${player.kills}!`, 'warning');
         }
 
-        // Zone timer
-        const timer = Math.max(0, Math.ceil(this.game.safeZone.timeUntilShrink / 1000));
-        document.getElementById('hud-zone-timer').textContent = timer;
-
-        // Minimap Safe Zone Direction & Distance Indicator
-        const zoneInfo = document.getElementById('minimap-zone-info');
-        const zoneText = document.getElementById('minimap-zone-text');
-        if (zoneInfo && zoneText && this.game.safeZone) {
-            const distToCenter = Math.hypot(player.x - this.game.safeZone.x, player.y - this.game.safeZone.y);
-            const isInside = distToCenter <= this.game.safeZone.radius;
-            if (!isInside) {
-                const excessMeters = Math.round((distToCenter - this.game.safeZone.radius) / 10);
-                zoneInfo.className = 'minimap-zone-info out-zone';
-                zoneText.textContent = `⚠️ NGOÀI VÒNG: ${excessMeters}m`;
-            } else {
+        // Zone timer & Minimap indicator
+        if (this.game.isRoomMode) {
+            const zt = document.getElementById('hud-zone-timer');
+            if (zt) zt.textContent = '∞';
+            const zoneInfo = document.getElementById('minimap-zone-info');
+            const zoneText = document.getElementById('minimap-zone-text');
+            if (zoneInfo && zoneText) {
                 zoneInfo.className = 'minimap-zone-info in-zone';
-                zoneText.textContent = `✅ VỊ TRÍ AN TOÀN`;
+                zoneText.textContent = '🌐 BẢN ĐỒ TỰ DO (KHÔNG BO)';
+            }
+        } else {
+            const timer = Math.max(0, Math.ceil(this.game.safeZone.timeUntilShrink / 1000));
+            const zt = document.getElementById('hud-zone-timer');
+            if (zt) zt.textContent = timer;
+
+            // Minimap Safe Zone Direction & Distance Indicator
+            const zoneInfo = document.getElementById('minimap-zone-info');
+            const zoneText = document.getElementById('minimap-zone-text');
+            if (zoneInfo && zoneText && this.game.safeZone) {
+                const distToCenter = Math.hypot(player.x - this.game.safeZone.x, player.y - this.game.safeZone.y);
+                const isInside = distToCenter <= this.game.safeZone.radius;
+                if (!isInside) {
+                    const excessMeters = Math.round((distToCenter - this.game.safeZone.radius) / 10);
+                    zoneInfo.className = 'minimap-zone-info out-zone';
+                    zoneText.textContent = `⚠️ NGOÀI VÒNG: ${excessMeters}m`;
+                } else {
+                    zoneInfo.className = 'minimap-zone-info in-zone';
+                    zoneText.textContent = `✅ VỊ TRÍ AN TOÀN`;
+                }
             }
         }
 
