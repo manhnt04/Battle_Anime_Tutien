@@ -21,7 +21,44 @@ export class UI {
 
     setupEventListeners() {
         // Main menu
-        document.getElementById('btn-play').addEventListener('click', () => this.enterLobby());
+        document.getElementById('btn-play').addEventListener('click', () => {
+            this.game.customEnemyCount = undefined;
+            this.game.customDifficulty = undefined;
+            this.enterLobby();
+        });
+
+        const btnCreateRoom = document.getElementById('btn-create-room');
+        if (btnCreateRoom) {
+            btnCreateRoom.addEventListener('click', () => this.showScreen('room-screen'));
+        }
+
+        const btnRoomBack = document.getElementById('btn-room-back');
+        if (btnRoomBack) {
+            btnRoomBack.addEventListener('click', () => this.showScreen('main-menu'));
+        }
+
+        const btnRoomStart = document.getElementById('btn-room-start');
+        if (btnRoomStart) {
+            btnRoomStart.addEventListener('click', () => {
+                const enemiesSelect = document.getElementById('room-enemies');
+                const diffSelect = document.getElementById('room-difficulty');
+                const roomNameInput = document.getElementById('room-name');
+                
+                const enemyCount = enemiesSelect ? parseInt(enemiesSelect.value, 10) : 9;
+                const difficulty = diffSelect ? diffSelect.value : 'normal';
+                const roomName = roomNameInput ? roomNameInput.value : 'Hắc Mộc Nhai';
+
+                this.game.customEnemyCount = enemyCount;
+                this.game.customDifficulty = difficulty;
+                this.game.customRoomName = roomName;
+
+                this.fadeTransition(() => {
+                    this.startGame();
+                    this.addNotification(`⚔️ KHỞI TRANH: [${roomName}] (${enemyCount + 1} Hiệp Khách)!`, 'gold');
+                });
+            });
+        }
+
         const btnShowcase = document.getElementById('btn-showcase');
         if (btnShowcase) {
             btnShowcase.addEventListener('click', () => {

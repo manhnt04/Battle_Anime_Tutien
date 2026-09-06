@@ -968,11 +968,25 @@ export class Game {
         this.camera.follow(this.player);
 
         this.enemies = [];
-        const enemyTypes = ['basic', 'basic', 'basic', 'aggressive', 'aggressive', 'cautious', 'cautious', 'sniper'];
-        for (let i = 0; i < CONSTANTS.MAX_ENEMIES; i++) {
+        const enemyCount = (typeof this.customEnemyCount === 'number') ? this.customEnemyCount : CONSTANTS.MAX_ENEMIES;
+        let enemyTypes = ['basic', 'basic', 'basic', 'aggressive', 'aggressive', 'cautious', 'cautious', 'sniper'];
+        if (this.customDifficulty === 'easy') {
+            enemyTypes = ['basic', 'basic', 'cautious'];
+        } else if (this.customDifficulty === 'hard') {
+            enemyTypes = ['aggressive', 'aggressive', 'aggressive', 'sniper'];
+        }
+
+        for (let i = 0; i < enemyCount; i++) {
             const pos = this.map.getRandomSpawnPoint(CONSTANTS.ENEMY_RADIUS, 280);
             const type = enemyTypes[randomInt(0, enemyTypes.length - 1)];
-            this.enemies.push(new Enemy(pos.x, pos.y, type));
+            const enemy = new Enemy(pos.x, pos.y, type);
+            if (this.customDifficulty === 'easy') {
+                enemy.damageModifier = 0.7;
+            } else if (this.customDifficulty === 'hard') {
+                enemy.damageModifier = 1.35;
+                enemy.speed *= 1.15;
+            }
+            this.enemies.push(enemy);
         }
 
         this.lootManager.generateLoot(CONSTANTS.LOOT_COUNT);

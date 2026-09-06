@@ -524,6 +524,108 @@ body, html {
     flex: 1;
 }
 
+/* Custom Room Screen (Tạo Phòng) */
+#room-screen {
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, rgba(16, 23, 30, 0.88) 0%, rgba(6, 10, 14, 0.97) 100%);
+    backdrop-filter: blur(8px);
+    pointer-events: auto;
+}
+
+.room-card {
+    max-width: 540px;
+    width: 92%;
+    padding: 30px 36px;
+    gap: 18px;
+}
+
+.room-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.room-badge {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #ff9800;
+    font-weight: 800;
+    padding: 3px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 152, 0, 0.5);
+    background: rgba(255, 152, 0, 0.12);
+}
+
+.room-header h2 {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #fff8e7;
+    text-shadow: 0 0 14px rgba(255, 152, 0, 0.4);
+}
+
+.room-desc {
+    font-size: 12.5px;
+    color: #b0bec5;
+    letter-spacing: 0.5px;
+}
+
+.room-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: rgba(12, 18, 24, 0.88);
+    border: 1.5px solid rgba(255, 215, 0, 0.35);
+    border-radius: 10px;
+    padding: 18px 22px;
+    text-align: left;
+}
+
+.room-input,
+.room-select {
+    width: 100%;
+    background: rgba(24, 32, 42, 0.9);
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    border-radius: 6px;
+    color: #fff8e7;
+    padding: 8px 12px;
+    font-size: 13.5px;
+    font-weight: 700;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.room-input:focus,
+.room-select:focus {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+}
+
+.room-select option {
+    background: #18202a;
+    color: #fff8e7;
+}
+
+.room-buttons {
+    flex-direction: row;
+    gap: 12px;
+}
+
+.room-buttons .btn {
+    flex: 1;
+}
+
+@media (max-width: 900px) {
+    .room-card {
+        padding: 22px 18px;
+    }
+    .room-buttons {
+        flex-direction: column;
+    }
+}
+
 /* HUD Screen */
 #hud {
     display: none;

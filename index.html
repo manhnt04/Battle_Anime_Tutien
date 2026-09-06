@@ -37,10 +37,10 @@
                 </div>
                 
                 <div class="menu-buttons">
-                    <button id="btn-play" class="btn btn-primary">XUẤT SƠN TRANH ĐOẠT (CHƠI)</button>
-                    <button id="btn-showcase" class="btn btn-warning">NGŨ BINH PHỔ (VÕ HỌC THÍ LUẬN)</button>
-                    <button id="btn-controls" class="btn btn-secondary">BÍ KÍP VÕ HỌC (HƯỚNG DẪN)</button>
-                    <button id="btn-settings" class="btn btn-secondary">TU TÙY THIẾT LẬP</button>
+                    <button id="btn-play" class="btn btn-primary">⚔️ GHÉP TRẬN</button>
+                    <button id="btn-create-room" class="btn btn-warning">🏛️ TẠO PHÒNG</button>
+                    <button id="btn-controls" class="btn btn-secondary">📜 HƯỚNG DẪN</button>
+                    <button id="btn-settings" class="btn btn-secondary">⚙️ SETTINGS</button>
                 </div>
 
                 <div class="stats-panel">
@@ -104,6 +104,47 @@
             </div>
         </div>
 
+        <!-- Custom Room Screen (Tạo Phòng Tùy Chỉnh) -->
+        <div id="room-screen" class="screen">
+            <div class="menu-card room-card">
+                <div class="room-header">
+                    <span class="room-badge">🏛️ ĐẠI HỘI TÙY CHỈNH</span>
+                    <h2>TẠO PHÒNG VÕ ĐÀI</h2>
+                    <p class="room-desc">Thiết lập quy mô quần hùng và quy tắc chiến trường giang hồ...</p>
+                </div>
+
+                <div class="room-settings">
+                    <div class="setting-row">
+                        <label for="room-name">Tên Võ Đài (Tên Phòng)</label>
+                        <input type="text" id="room-name" value="Hắc Mộc Nhai #6868" maxlength="24" class="room-input">
+                    </div>
+
+                    <div class="setting-row">
+                        <label for="room-enemies">Quy Mô Hiệp Khách</label>
+                        <select id="room-enemies" class="room-select">
+                            <option value="5">6 Người (Hỗn Chiến Nhanh - 5 Địch)</option>
+                            <option value="9" selected>10 Người (Đại Hội Chuẩn Mực - 9 Địch)</option>
+                            <option value="14">15 Người (Quần Hùng Trục Lộc - 14 Địch)</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-row">
+                        <label for="room-difficulty">Độ Khó Cao Thủ</label>
+                        <select id="room-difficulty" class="room-select">
+                            <option value="easy">Tập Sự (Dễ - Sát thương giảm 30%)</option>
+                            <option value="normal" selected>Hiệp Khách (Cân Bằng Tiêu Chuẩn)</option>
+                            <option value="hard">Sát Thủ Giang Hồ (Địa Ngục - Rất Hung Hãn)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="menu-buttons room-buttons">
+                    <button id="btn-room-start" class="btn btn-primary">KHAI CHIẾN (VÀO TRẬN)</button>
+                    <button id="btn-room-back" class="btn btn-secondary">TRỞ VỀ SẢNH CHÍNH</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Controls Screen -->
         <div id="controls-screen" class="screen">
             <div class="menu-card">
@@ -125,7 +166,10 @@
                     <p>⚡ <strong>Thùng thính kỳ bảo:</strong> Rương vàng từ trời rơi xuống chứa tuyệt kỹ và Nhuyễn Vị Giáp!</p>
                     <p>🔥 <strong>Ngũ Binh Phổ:</strong> Mỗi thần binh sở hữu combo và hệ thống chiêu thức võ hiệp độc môn!</p>
                 </div>
-                <button id="btn-controls-back" class="btn btn-secondary">TRỞ VỀ</button>
+                <div class="menu-buttons" style="margin-top: 14px;">
+                    <button id="btn-showcase" class="btn btn-warning">📜 NGŨ BINH PHỔ (THỬ NGHIỆM CHIÊU THỨC)</button>
+                    <button id="btn-controls-back" class="btn btn-secondary">TRỞ VỀ</button>
+                </div>
             </div>
         </div>
 
