@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Võ Lâm Sinh Tồn - Cửu Kiếm Quy Nhất</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Screen Transition Overlay (Fade In / Out) -->
+    <div id="screen-transition" class="screen-transition"></div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Damage Flash Vignette -->
+    <div id="damage-indicator"></div>
+
+    <!-- UI Container -->
+    <div id="ui-container">
+        <!-- Main Menu -->
+        <div id="main-menu" class="screen active">
+            <div class="menu-card">
+                <div class="logo">
+                    <span class="logo-icon">⚔️</span>
+                    <h1>VÕ LÂM SINH TỒN</h1>
+                    <p class="subtitle">CỬU KIẾM QUY NHẤT • BATTLE ROYALE</p>
+                </div>
+                
+                <div class="menu-buttons">
+                    <button id="btn-play" class="btn btn-primary">XUẤT SƠN TRANH ĐOẠT (CHƠI)</button>
+                    <button id="btn-showcase" class="btn btn-warning">NGŨ BINH PHỔ (VÕ HỌC THÍ LUẬN)</button>
+                    <button id="btn-controls" class="btn btn-secondary">BÍ KÍP VÕ HỌC (HƯỚNG DẪN)</button>
+                    <button id="btn-settings" class="btn btn-secondary">TU TÙY THIẾT LẬP</button>
+                </div>
+
+                <div class="stats-panel">
+                    <h3>CHIẾN TÍCH GIANG HỒ</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">VÔ ĐỊCH (THẮNG)</span>
+                            <span id="stat-wins" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">HẠ ĐỐI THỦ</span>
+                            <span id="stat-kills" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">SỐ LẦN XUẤT SƠN</span>
+                            <span id="stat-played" class="stat-value">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lobby / Waiting Room Screen -->
+        <div id="lobby-screen" class="screen">
+            <div class="menu-card lobby-card">
+                <div class="lobby-header">
+                    <span class="lobby-badge">⚔️ PHÒNG CHỜ THÍ LIỆN</span>
+                    <h2>VÕ ĐÀI TẬP KẾT • ĐẠI HỘI QUẦN HÙNG</h2>
+                    <p class="lobby-desc">Đang triệu tập anh hùng hào kiệt giang hồ tiến nhập Hắc Mộc Nhai...</p>
+                </div>
+
+                <div class="lobby-matchmaking">
+                    <div class="lobby-counter-box">
+                        <span class="lobby-counter-label">QUẦN HÙNG TỤ HỢP</span>
+                        <div class="lobby-counter-value"><strong id="lobby-player-count">3</strong><span class="max-text">/ 10</span></div>
+                    </div>
+                    <div class="lobby-progress-track">
+                        <div id="lobby-progress-bar" class="lobby-progress-fill" style="width: 30%;"></div>
+                    </div>
+                    <div class="lobby-status-row">
+                        <span id="lobby-status-msg" class="lobby-status-msg">Đang dò tìm cao thủ...</span>
+                        <span class="lobby-timer-badge">Khai chiến: <strong id="lobby-countdown">5</strong>s</span>
+                    </div>
+                </div>
+
+                <div class="lobby-character-preview">
+                    <div class="char-avatar-frame">
+                        <span class="char-avatar-icon">🥋</span>
+                    </div>
+                    <div class="char-details">
+                        <div class="char-name">TIÊU DAO HIỆP KHÁCH</div>
+                        <div class="char-sect">Môn Phái: Toàn Chân Giáo • Khởi Đầu: Quyền Cước</div>
+                        <div class="char-tips">💡 <em>Mẹo: Nấp sau vách đá/đình tạ để giấu tung tích khỏi tầm nhìn đối thủ!</em></div>
+                    </div>
+                </div>
+
+                <div class="menu-buttons lobby-buttons">
+                    <button id="btn-lobby-start" class="btn btn-primary">KHAI CHIẾN NGAY (VÀO TRẬN)</button>
+                    <button id="btn-lobby-cancel" class="btn btn-secondary">HỦY BỎ (VỀ SƠN TRANG)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Screen -->
+        <div id="controls-screen" class="screen">
+            <div class="menu-card">
+                <h2>BÍ KÍP THAO TÁC VÕ HỌC</h2>
+                <div class="controls-list">
+                    <div class="control-row"><span class="key-badge">W A S D</span><span>Khinh công / Di chuyển</span></div>
+                    <div class="control-row"><span class="key-badge">CHUỘT</span><span>Định hướng kiếm ý & tầm nhìn</span></div>
+                    <div class="control-row"><span class="key-badge">CHUỘT TRÁI</span><span>Đánh thường / Xuất chiêu / Trảm kích</span></div>
+                    <div class="control-row"><span class="key-badge">CHUỘT PHẢI</span><span>Thần tốc Cận chiến</span></div>
+                    <div class="control-row"><span class="key-badge">Q</span><span>Kỹ năng Võ học 1 (Thức Thứ Nhất)</span></div>
+                    <div class="control-row"><span class="key-badge">E</span><span>Kỹ năng Võ học 2 (Thức Thứ Hai)</span></div>
+                    <div class="control-row"><span class="key-badge">R</span><span>Tuyệt Kỹ Trấn Phái / Vận khí nạp tiễn</span></div>
+                    <div class="control-row"><span class="key-badge">F</span><span>Nhặt Đan dược, Bảo rương Kỳ bảo</span></div>
+                    <div class="control-row"><span class="key-badge">1 - 5</span><span>Hoán đổi Thần binh bảo vật</span></div>
+                    <div class="control-row"><span class="key-badge">ESC</span><span>Định tâm tạm dừng / Tiếp tục</span></div>
+                </div>
+                <div class="mechanic-tip">
+                    <p>👁️ <strong>Sương mù tầm nhìn:</strong> Nấp sau vách nhà, tảng đá lớn để giấu tung tích phục kích đối thủ!</p>
+                    <p>⚡ <strong>Thùng thính kỳ bảo:</strong> Rương vàng từ trời rơi xuống chứa tuyệt kỹ và Nhuyễn Vị Giáp!</p>
+                    <p>🔥 <strong>Ngũ Binh Phổ:</strong> Mỗi thần binh sở hữu combo và hệ thống chiêu thức võ hiệp độc môn!</p>
+                </div>
+                <button id="btn-controls-back" class="btn btn-secondary">TRỞ VỀ</button>
+            </div>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settings-screen" class="screen">
+            <div class="menu-card">
+                <h2>THIẾT LẬP ÂM LUẬT & HỆ THỐNG</h2>
+                <div class="settings-group">
+                    <div class="setting-row">
+                        <label for="volume-master">Âm Lượng Tổng</label>
+                        <input type="range" id="volume-master" min="0" max="100" value="80">
+                    </div>
+                    <div class="setting-row">
+                        <label for="volume-music">Nhạc Ngũ Cung</label>
+                        <input type="range" id="volume-music" min="0" max="100" value="50">
+                    </div>
+                    <div class="setting-row">
+                        <label for="volume-sfx">Tiếng Binh Khí (SFX)</label>
+                        <input type="range" id="volume-sfx" min="0" max="100" value="80">
+                    </div>
+                    <div class="setting-row">
+                        <label for="screenshake">Độ Rung Kiếm Ý</label>
+                        <input type="range" id="screenshake" min="0" max="10" value="5">
+                    </div>
+                    <div class="setting-row checkbox-row">
+                        <label for="show-fps">Hiển Thị Chỉ Số FPS</label>
+                        <input type="checkbox" id="show-fps" checked>
+                    </div>
+                    <div class="setting-row checkbox-row">
+                        <label for="fullscreen">Toàn Màn Hình</label>
+                        <input type="checkbox" id="fullscreen">
+                    </div>
+                </div>
+                <button id="btn-settings-back" class="btn btn-secondary">TRỞ VỀ</button>
+            </div>
+        </div>
+
+        <!-- In-Game HUD -->
+        <div id="hud" class="screen">
+            <!-- Top HUD: Match Stats & Minimap -->
+            <div class="hud-top">
+                <div class="hud-stat-box">
+                    <div class="stat-box-item">
+                        <span class="label">SĨ SỐ VÕ LÂM</span>
+                        <span id="hud-players-count" class="value text-cyan">10</span>
+                    </div>
+                    <div class="stat-box-item">
+                        <span class="label">CHIẾN TÍCH</span>
+                        <span id="hud-kills" class="value text-gold">0</span>
+                    </div>
+                    <div class="stat-box-item">
+                        <span class="label">ĐỘC VỤ CO LẠI</span>
+                        <span id="hud-zone-timer" class="value text-red">30</span>
+                    </div>
+                </div>
+
+                <!-- Prominent Kill Badge (Trảm Sát Trực Tiếp) -->
+                <div id="hud-kill-banner" class="hud-kill-banner">
+                    <span class="kill-icon">⚔️</span>
+                    <div class="kill-info">
+                        <span class="kill-label">TRẢM SÁT</span>
+                        <span id="hud-kill-count" class="kill-count">0</span>
+                    </div>
+                </div>
+
+                <div class="minimap-container">
+                    <div class="minimap-wrapper">
+                        <canvas id="minimapCanvas" width="160" height="160"></canvas>
+                    </div>
+                    <div id="minimap-zone-info" class="minimap-zone-info in-zone">
+                        <span id="minimap-zone-icon" class="zone-icon">🧭</span>
+                        <span id="minimap-zone-text">VỊ TRÍ AN TOÀN</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast Notifications -->
+            <div id="notifications"></div>
+
+            <!-- Bottom HUD: Vitality, Inventory, Qi Reserve -->
+            <div class="hud-bottom">
+                <!-- Status Bars -->
+                <div class="status-container">
+                    <div class="bar-group">
+                        <div class="bar-header">
+                            <span class="bar-title">❤️ KHÍ HUYẾT (HP)</span>
+                            <span id="health-text" class="bar-numeric">100/100</span>
+                        </div>
+                        <div class="bar-track">
+                            <div id="health-lag" class="bar-lag"></div>
+                            <div id="health-fill" class="bar-fill health-bar" style="width: 100%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="bar-group">
+                        <div class="bar-header">
+                            <span class="bar-title">🛡️ HỘ THỂ CHÂN KHÍ</span>
+                            <span id="armor-text" class="bar-numeric">0/100</span>
+                        </div>
+                        <div class="bar-track">
+                            <div id="armor-lag" class="bar-lag"></div>
+                            <div id="armor-fill" class="bar-fill armor-bar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HUD Skill Bar (Q, E, R) -->
+                <div id="hud-skill-bar" class="hud-skill-bar">
+                    <div id="hud-skill-0" class="hud-skill-slot" data-key="Q">
+                        <div class="hud-skill-key">Q</div>
+                        <div id="hud-skill-name-0" class="hud-skill-name">CHIÊU 1</div>
+                        <div id="hud-skill-cd-0" class="hud-skill-cd"></div>
+                    </div>
+                    <div id="hud-skill-1" class="hud-skill-slot" data-key="E">
+                        <div class="hud-skill-key">E</div>
+                        <div id="hud-skill-name-1" class="hud-skill-name">CHIÊU 2</div>
+                        <div id="hud-skill-cd-1" class="hud-skill-cd"></div>
+                    </div>
+                    <div id="hud-skill-2" class="hud-skill-slot" data-key="R">
+                        <div class="hud-skill-key">R</div>
+                        <div id="hud-skill-name-2" class="hud-skill-name">TUYỆT KỸ</div>
+                        <div id="hud-skill-cd-2" class="hud-skill-cd"></div>
+                    </div>
+                </div>
+
+                <!-- Weapon / Martial Skill Slots -->
+                <div class="weapon-slots">
+                    <div class="weapon-slot active" data-slot="0">👊</div>
+                    <div class="weapon-slot" data-slot="1"></div>
+                    <div class="weapon-slot" data-slot="2"></div>
+                    <div class="weapon-slot" data-slot="3"></div>
+                    <div class="weapon-slot" data-slot="4"></div>
+                </div>
+
+                <!-- Weapon & Ammo Display -->
+                <div class="weapon-info-box">
+                    <div id="weapon-name" class="weapon-title">QUYỀN CƯỚC</div>
+                    <div id="weapon-ammo" class="ammo-title">VÔ HẠN</div>
+                </div>
+            </div>
+
+            <!-- Mobile Touch Controls (Liên Quân Mobile Style) -->
+            <div id="mobile-controls" class="mobile-controls">
+                <!-- Virtual Joystick (Left Hand) -->
+                <div id="joystick-zone" class="joystick-zone">
+                    <div id="joystick-base" class="joystick-base">
+                        <div class="joystick-lotus-ornament"></div>
+                        <div class="joystick-ring"></div>
+                        <div id="joystick-knob" class="joystick-knob">
+                            <div class="knob-emblem"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons Cluster (Right Hand - Arc Layout) -->
+                <div id="mobile-action-cluster" class="mobile-action-cluster">
+                    <!-- Auxiliary Row: Quick Medicine / Heal + Pickup [F] -->
+                    <div class="mobile-aux-row">
+                        <!-- Quick Medicine / Heal (Uống Dược / Hồi Máu) -->
+                        <button id="btn-mobile-heal" class="mobile-btn mobile-btn-heal" aria-label="Uống Dược">
+                            <span class="btn-icon">🧪</span>
+                            <span class="btn-sub">HỒI MÁU</span>
+                            <span id="badge-mobile-heal" class="btn-badge">2</span>
+                        </button>
+
+                        <!-- Interact / Pickup (Nhặt Đồ) -->
+                        <button id="btn-mobile-pickup" class="mobile-btn mobile-btn-pickup" aria-label="Nhặt Kỳ Bảo">
+                            <span class="btn-icon">🫳</span>
+                            <span class="btn-sub">NHẶT [F]</span>
+                        </button>
+                    </div>
+
+                    <!-- Skills Arc (Chiêu 1, Chiêu 2, Tuyệt Kỹ) -->
+                    <div class="mobile-skills-arc">
+                        <!-- Skill 1 (Chiêu 1 - Q) -->
+                        <button id="btn-mobile-skill-0" class="mobile-btn mobile-btn-skill" aria-label="Chiêu 1">
+                            <span id="mobile-skill-icon-0" class="btn-icon">💥</span>
+                            <span id="mobile-skill-name-0" class="btn-sub">CHIÊU 1</span>
+                            <div id="mobile-skill-cd-0" class="mobile-skill-cd"></div>
+                        </button>
+
+                        <!-- Skill 2 (Chiêu 2 - E) -->
+                        <button id="btn-mobile-skill-1" class="mobile-btn mobile-btn-skill" aria-label="Chiêu 2">
+                            <span id="mobile-skill-icon-1" class="btn-icon">⚔️</span>
+                            <span id="mobile-skill-name-1" class="btn-sub">CHIÊU 2</span>
+                            <div id="mobile-skill-cd-1" class="mobile-skill-cd"></div>
+                        </button>
+
+                        <!-- Skill 3 / Ultimate (Tuyệt Kỹ - R) -->
+                        <button id="btn-mobile-skill-2" class="mobile-btn mobile-btn-skill mobile-btn-ult" aria-label="Tuyệt Kỹ">
+                            <span id="mobile-skill-icon-2" class="btn-icon">🔥</span>
+                            <span id="mobile-skill-name-2" class="btn-sub">TUYỆT KỸ</span>
+                            <div id="mobile-skill-cd-2" class="mobile-skill-cd"></div>
+                        </button>
+                    </div>
+
+                    <!-- Primary Attack (Đánh Thường - Big 84px Button with Golden Lotus Frame) -->
+                    <div class="mobile-attack-wrap">
+                        <button id="btn-mobile-attack" class="mobile-btn mobile-btn-attack" aria-label="Công Kích">
+                            <div class="attack-lotus-ring"></div>
+                            <span id="mobile-attack-icon" class="btn-icon">⚔️</span>
+                            <span class="btn-sub">CÔNG KÍCH</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pause Modal -->
+            <div id="pause-modal" class="pause-overlay">
+                <div class="menu-card">
+                    <h2>ĐỊNH TÂM TẠM NGHỈ</h2>
+                    <div class="menu-buttons">
+                        <button id="btn-resume" class="btn btn-primary">TIẾP TỤC QUYẾT ĐẤU</button>
+                        <button id="btn-pause-settings" class="btn btn-secondary">THIẾT LẬP</button>
+                        <button id="btn-quit" class="btn btn-danger">RÚT LUI KHỎI TRẬN</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Showcase Modal: Ngũ Binh Phổ (Võ Học Thí Luận) -->
+        <div id="showcase-modal" class="screen">
+            <div class="showcase-container">
+                <div class="showcase-header">
+                    <div class="showcase-title-row">
+                        <span class="showcase-badge">📜 BẢNG THẦN BINH</span>
+                        <h2>NGŨ BINH PHỔ • VÕ HỌC THÍ LUẬN</h2>
+                    </div>
+                    <button id="btn-showcase-close" class="btn btn-secondary btn-sm">✕ TRỞ VỀ</button>
+                </div>
+
+                <div class="showcase-body">
+                    <!-- Left: Weapon list selection -->
+                    <div class="showcase-weapons-list">
+                        <button class="weapon-tab-btn active" data-weapon="TRUONG_KIEM">
+                            <span class="tab-icon">🗡️</span>
+                            <div class="tab-info">
+                                <span class="tab-name">TRƯỜNG KIẾM</span>
+                                <span class="tab-rarity common">PHỔ THÔNG</span>
+                            </div>
+                        </button>
+                        <button class="weapon-tab-btn" data-weapon="THIET_PHIEN">
+                            <span class="tab-icon">🪭</span>
+                            <div class="tab-info">
+                                <span class="tab-name">THIẾT PHIẾN</span>
+                                <span class="tab-rarity common">PHỔ THÔNG</span>
+                            </div>
+                        </button>
+                        <button class="weapon-tab-btn" data-weapon="LONG_UYET_DAO">
+                            <span class="tab-icon">🪓</span>
+                            <div class="tab-info">
+                                <span class="tab-name">LONG UYỆT ĐAO</span>
+                                <span class="tab-rarity rare">QUÝ HIẾM</span>
+                            </div>
+                        </button>
+                        <button class="weapon-tab-btn" data-weapon="MA_THIEN_THUONG">
+                            <span class="tab-icon">🔱</span>
+                            <div class="tab-info">
+                                <span class="tab-name">MA THIÊN THƯƠNG</span>
+                                <span class="tab-rarity rare">QUÝ HIẾM</span>
+                            </div>
+                        </button>
+                        <button class="weapon-tab-btn" data-weapon="BACH_HOP_CUNG">
+                            <span class="tab-icon">🏹</span>
+                            <div class="tab-info">
+                                <span class="tab-name">BÁCH HỢP CUNG</span>
+                                <span class="tab-rarity rare">QUÝ HIẾM</span>
+                            </div>
+                        </button>
+                        <button class="weapon-tab-btn" data-weapon="ZANGETSU">
+                            <span class="tab-icon">🗡️</span>
+                            <div class="tab-info">
+                                <span class="tab-name">ZANGETSU</span>
+                                <span class="tab-rarity legendary">LEGENDARY</span>
+                            </div>
+                        </button>
+                        <button class="weapon-tab-btn" data-weapon="ONE_FOR_ALL">
+                            <span class="tab-icon">🥊</span>
+                            <div class="tab-info">
+                                <span class="tab-name">ONE FOR ALL</span>
+                                <span class="tab-rarity legendary">LEGENDARY</span>
+                            </div>
+                        </button>
+                        <button class="weapon-tab-btn" data-weapon="KATON">
+                            <span class="tab-icon">🥷</span>
+                            <div class="tab-info">
+                                <span class="tab-name">KATON</span>
+                                <span class="tab-rarity legendary">LEGENDARY</span>
+                            </div>
+                        </button>
+                        <button class="weapon-tab-btn" data-weapon="EXCALIBUR">
+                            <span class="tab-icon">🔮</span>
+                            <div class="tab-info">
+                                <span class="tab-name">EXCALIBUR</span>
+                                <span class="tab-rarity legendary">LEGENDARY</span>
+                            </div>
+                        </button>
+                        <button class="weapon-tab-btn" data-weapon="GATE_OF_BABYLON">
+                            <span class="tab-icon">🏹</span>
+                            <div class="tab-info">
+                                <span class="tab-name">GATE OF BABYLON</span>
+                                <span class="tab-rarity legendary">LEGENDARY</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Middle: Weapon Details & Skills description -->
+                    <div class="showcase-details">
+                        <div id="showcase-weapon-header" class="details-header">
+                            <h3 id="showcase-weapon-name">TRƯỜNG KIẾM</h3>
+                            <span id="showcase-weapon-tag" class="weapon-tag">Phổ Thông • Kiếm Quang Như Nước</span>
+                        </div>
+                        <p id="showcase-weapon-desc" class="details-desc">Kiếm quang như nước, chiêu thức linh hoạt liên hoàn.</p>
+                        <div class="details-stats">
+                            <div class="stat-pill">Sát thương: <strong id="showcase-stat-dmg">25</strong></div>
+                            <div class="stat-pill">Tầm đánh: <strong id="showcase-stat-range">60px</strong></div>
+                            <div class="stat-pill">Tốc độ: <strong id="showcase-stat-speed">500ms</strong></div>
+                        </div>
+
+                        <div class="showcase-skills-section">
+                            <h4>BÍ TRUYỀN CHIÊU THỨC</h4>
+                            <div id="showcase-skills-list" class="skills-card-list">
+                                <!-- Dynamically populated by UI -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Interactive Live Arena with Training Dummy -->
+                    <div class="showcase-arena-box">
+                        <div class="arena-canvas-wrap">
+                            <canvas id="showcase-canvas" width="460" height="340"></canvas>
+                            <div class="dummy-health-wrap">
+                                <div class="dummy-label">MỘC NHÂN THÍ VÕ: <span id="dummy-hp-text">500/500</span></div>
+                                <div class="dummy-hp-track">
+                                    <div id="dummy-hp-bar" class="dummy-hp-fill" style="width: 100%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="arena-controls">
+                            <button id="btn-test-attack" class="btn btn-action">⚔️ ĐÁNH THƯỜNG</button>
+                            <button id="btn-test-skill-0" class="btn btn-action">💥 CHIÊU 1 [Q]</button>
+                            <button id="btn-test-skill-1" class="btn btn-action">💥 CHIÊU 2 [E]</button>
+                            <button id="btn-test-skill-2" class="btn btn-action">🔥 TUYỆT KỸ [R]</button>
+                            <button id="btn-reset-dummy" class="btn btn-secondary">🔄 HỒI MỘC NHÂN</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Victory Screen -->
+        <div id="victory-screen" class="screen">
+            <div class="menu-card victory-card">
+                <div class="trophy-icon">🏆</div>
+                <h1 class="victory-title">ĐỘC BÔ VÕ LÂM</h1>
+                <p class="victory-subtitle">THIÊN HẠ VÔ SONG • MINH CHỦ ĐỆ NHẤT</p>
+
+                <div class="victory-stats">
+                    <div class="stat-box">
+                        <span class="stat-label">TỔNG HẠ ĐỐI THỦ</span>
+                        <span id="victory-kills" class="stat-val">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">THỜI GIAN CHIẾN ĐẤU</span>
+                        <span id="victory-time" class="stat-val">0:00</span>
+                    </div>
+                </div>
+
+                <div class="menu-buttons">
+                    <button id="btn-victory-restart" class="btn btn-primary">TÁI XUẤT GIANG HỒ</button>
+                    <button id="btn-victory-menu" class="btn btn-secondary">VỀ SƠN TRANG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="screen">
+            <div class="menu-card gameover-card">
+                <div class="skull-icon">☠️</div>
+                <h1 class="gameover-title">TRỌNG THƯƠNG TỬ TRẬN</h1>
+                <div class="place-tag"><span id="gameover-place">#10</span></div>
+
+                <div class="gameover-stats">
+                    <div class="stat-box">
+                        <span class="stat-label">SỐ CAO THỦ ĐÃ HẠ</span>
+                        <span id="gameover-kills" class="stat-val">0</span>
+                    </div>
+                </div>
+
+                <div class="menu-buttons">
+                    <button id="btn-gameover-restart" class="btn btn-primary">TRỌNG SINH PHỤC THÙ</button>
+                    <button id="btn-gameover-menu" class="btn btn-secondary">VỀ SƠN TRANG</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PixiJS Rendering Engine -->
+    <script src="js/vendor/pixi.min.js"></script>
+
+    <!-- Main Entry Module -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
