@@ -12,8 +12,10 @@ export class UI {
         this.lobbyCountdownInterval = null;
         this.isTransitioning = false;
         this.showcase = new WeaponShowcase();
+        this.wakeLock = null;
 
         this.setupEventListeners();
+        this.setupFullscreen();
         this.loadStats();
     }
 
@@ -70,10 +72,208 @@ export class UI {
         document.getElementById('show-fps').addEventListener('change', (e) => {
             this.game.showFps = e.target.checked;
         });
-        document.getElementById('fullscreen').addEventListener('change', (e) => {
-            if (e.target.checked) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
+    }
+
+    setupFullscreen() {
+        // Menu Fullscreen button
+        const btnMenuFs = document.getElementById('btn-menu-fullscreen');
+        if (btnMenuFs) {
+            btnMenuFs.addEventListener('click', () => this.toggleFullscreen());
+        }
+
+        // HUD Fullscreen button
+        const btnHudFs = document.getElementById('btn-hud-fullscreen');
+        if (btnHudFs) {
+            btnHudFs.addEventListener('click', () => this.toggleFullscreen());
+        }
+
+        // Pause Modal Fullscreen button
+        const btnPauseFs = document.getElementById('btn-pause-fullscreen');
+        if (btnPauseFs) {
+            btnPauseFs.addEventListener('click', () => this.toggleFullscreen());
+        }
+
+        // Settings checkbox
+        const chkFullscreen = document.getElementById('fullscreen');
+        if (chkFullscreen) {
+            chkFullscreen.addEventListener('change', (e) => {
+                if (e.target.checked && !this.isFullscreen()) {
+                    this.enterFullscreen();
+                } else if (!e.target.checked && this.isFullscreen()) {
+                    this.exitFullscreen();
+                }
+            });
+        }
+
+        // Cross-browser Fullscreen Change Events
+        const fsEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+        fsEvents.forEach((evt) => {
+            document.addEventListener(evt, () => {
+                const isFS = this.isFullscreen();
+                this.updateFullscreenUI(isFS);
+                if (!isFS) {
+                    this.unlockOrientation();
+                    this.releaseWakeLock();
+                }
+            });
         });
+
+        // Re-request Wake Lock when returning to tab while in fullscreen
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && this.isFullscreen()) {
+                this.requestWakeLock();
+            }
+        });
+
+        // Initial UI sync
+        this.updateFullscreenUI(this.isFullscreen());
+    }
+
+    isFullscreen() {
+        return Boolean(
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement
+        );
+    }
+
+    async toggleFullscreen() {
+        if (this.isFullscreen()) {
+            await this.exitFullscreen();
+        } else {
+            await this.enterFullscreen();
+        }
+    }
+
+    async enterFullscreen() {
+        const el = document.documentElement;
+        try {
+            if (el.requestFullscreen) {
+                await el.requestFullscreen();
+            } else if (el.webkitRequestFullscreen) {
+                await el.webkitRequestFullscreen();
+            } else if (el.mozRequestFullScreen) {
+                await el.mozRequestFullScreen();
+            } else if (el.msRequestFullscreen) {
+                await el.msRequestFullscreen();
+            }
+            await this.lockOrientationLandscape();
+            await this.requestWakeLock();
+        } catch (err) {
+            console.warn('Enter fullscreen requires user gesture or is disallowed:', err);
+        }
+    }
+
+    async exitFullscreen() {
+        try {
+            if (document.exitFullscreen) {
+                await document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                await document.webkitExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+                await document.mozCancelFullScreen();
+            } else if (document.msExitFullscreen) {
+                await document.msExitFullscreen();
+            }
+        } catch (err) {
+            console.warn('Exit fullscreen error:', err);
+        } finally {
+            this.unlockOrientation();
+            this.releaseWakeLock();
+        }
+    }
+
+    async lockOrientationLandscape() {
+        try {
+            if (screen.orientation && typeof screen.orientation.lock === 'function') {
+                await screen.orientation.lock('landscape');
+            } else if (screen.lockOrientation) {
+                screen.lockOrientation('landscape');
+            } else if (screen.webkitLockOrientation) {
+                screen.webkitLockOrientation('landscape');
+            } else if (screen.mozLockOrientation) {
+                screen.mozLockOrientation('landscape');
+            }
+        } catch (err) {
+            // Orientation lock is only supported on mobile devices/fullscreen
+        }
+    }
+
+    unlockOrientation() {
+        try {
+            if (screen.orientation && typeof screen.orientation.unlock === 'function') {
+                screen.orientation.unlock();
+            } else if (screen.unlockOrientation) {
+                screen.unlockOrientation();
+            } else if (screen.webkitUnlockOrientation) {
+                screen.webkitUnlockOrientation();
+            }
+        } catch (err) {
+            // Fail gracefully
+        }
+    }
+
+    async requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator && !this.wakeLock) {
+                this.wakeLock = await navigator.wakeLock.request('screen');
+                this.wakeLock.addEventListener('release', () => {
+                    this.wakeLock = null;
+                });
+            }
+        } catch (err) {
+            // Fail gracefully
+        }
+    }
+
+    releaseWakeLock() {
+        if (this.wakeLock) {
+            this.wakeLock.release().catch(() => {});
+            this.wakeLock = null;
+        }
+    }
+
+    updateFullscreenUI(isFS) {
+        // Update Setting Checkbox
+        const chk = document.getElementById('fullscreen');
+        if (chk) chk.checked = isFS;
+
+        const iconText = isFS ? '🗗' : '⛶';
+        const labelText = isFS ? 'THU NHỎ' : 'TOÀN MÀN HÌNH';
+        const titleText = isFS ? 'Thu Nhỏ / Thoát Toàn Màn Hình' : 'Toàn Màn Hình / Khóa Màn Hình (F11)';
+
+        // Update Menu Button
+        const btnMenu = document.getElementById('btn-menu-fullscreen');
+        if (btnMenu) {
+            btnMenu.classList.toggle('is-fullscreen', isFS);
+            btnMenu.setAttribute('title', titleText);
+            const icon = btnMenu.querySelector('.fs-icon');
+            const text = btnMenu.querySelector('.fs-text');
+            if (icon) icon.textContent = iconText;
+            if (text) text.textContent = labelText;
+        }
+
+        // Update HUD Button
+        const btnHud = document.getElementById('btn-hud-fullscreen');
+        if (btnHud) {
+            btnHud.classList.toggle('is-fullscreen', isFS);
+            btnHud.setAttribute('title', titleText);
+            const icon = btnHud.querySelector('.fs-icon');
+            const text = btnHud.querySelector('.fs-text');
+            if (icon) icon.textContent = iconText;
+            if (text) text.textContent = labelText;
+        }
+
+        // Update Pause Modal Button
+        const btnPause = document.getElementById('btn-pause-fullscreen');
+        if (btnPause) {
+            btnPause.classList.toggle('is-fullscreen', isFS);
+            const icon = btnPause.querySelector('.fs-icon');
+            const text = btnPause.querySelector('.fs-text');
+            if (icon) icon.textContent = iconText;
+            if (text) text.textContent = labelText;
+        }
     }
 
     fadeTransition(callback, duration = 350) {

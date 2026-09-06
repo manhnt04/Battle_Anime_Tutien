@@ -2,7 +2,10 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Võ Lâm Sinh Tồn - Cửu Kiếm Quy Nhất</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
     <link rel="stylesheet" href="css/style.css">
@@ -21,6 +24,11 @@
     <div id="ui-container">
         <!-- Main Menu -->
         <div id="main-menu" class="screen active">
+            <!-- Floating Fullscreen Lock Toggle -->
+            <button id="btn-menu-fullscreen" class="btn-fullscreen-menu" aria-label="Toàn Màn Hình" title="Toàn Màn Hình (F11)">
+                <span class="fs-icon">⛶</span>
+                <span class="fs-text">TOÀN MÀN HÌNH</span>
+            </button>
             <div class="menu-card">
                 <div class="logo">
                     <span class="logo-icon">⚔️</span>
@@ -183,13 +191,19 @@
                     </div>
                 </div>
 
-                <div class="minimap-container">
-                    <div class="minimap-wrapper">
-                        <canvas id="minimapCanvas" width="160" height="160"></canvas>
-                    </div>
-                    <div id="minimap-zone-info" class="minimap-zone-info in-zone">
-                        <span id="minimap-zone-icon" class="zone-icon">🧭</span>
-                        <span id="minimap-zone-text">VỊ TRÍ AN TOÀN</span>
+                <div class="hud-top-right">
+                    <button id="btn-hud-fullscreen" class="btn-fullscreen-hud" aria-label="Toàn Màn Hình" title="Toàn Màn Hình (F11)">
+                        <span class="fs-icon">⛶</span>
+                        <span class="fs-text">TOÀN MÀN HÌNH</span>
+                    </button>
+                    <div class="minimap-container">
+                        <div class="minimap-wrapper">
+                            <canvas id="minimapCanvas" width="160" height="160"></canvas>
+                        </div>
+                        <div id="minimap-zone-info" class="minimap-zone-info in-zone">
+                            <span id="minimap-zone-icon" class="zone-icon">🧭</span>
+                            <span id="minimap-zone-text">VỊ TRÍ AN TOÀN</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -331,6 +345,9 @@
                     <h2>ĐỊNH TÂM TẠM NGHỈ</h2>
                     <div class="menu-buttons">
                         <button id="btn-resume" class="btn btn-primary">TIẾP TỤC QUYẾT ĐẤU</button>
+                        <button id="btn-pause-fullscreen" class="btn btn-secondary">
+                            <span class="fs-icon">⛶</span> <span class="fs-text">TOÀN MÀN HÌNH</span>
+                        </button>
                         <button id="btn-pause-settings" class="btn btn-secondary">THIẾT LẬP</button>
                         <button id="btn-quit" class="btn btn-danger">RÚT LUI KHỎI TRẬN</button>
                     </div>

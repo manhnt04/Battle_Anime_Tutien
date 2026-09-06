@@ -114,6 +114,52 @@ body, html {
     gap: 22px;
 }
 
+/* Floating Fullscreen Lock Button (Main Menu) */
+.btn-fullscreen-menu {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(18, 25, 32, 0.88);
+    border: 1.5px solid rgba(255, 215, 0, 0.45);
+    border-radius: 8px;
+    color: #ffd700;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 215, 0, 0.2);
+    transition: all 0.2s ease;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.btn-fullscreen-menu:hover {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: #ffd700;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 22px rgba(255, 215, 0, 0.45);
+}
+
+.btn-fullscreen-menu.is-fullscreen,
+.btn-fullscreen-hud.is-fullscreen,
+#btn-pause-fullscreen.is-fullscreen {
+    border-color: #00e5ff !important;
+    color: #00e5ff !important;
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.45) !important;
+}
+
+.btn-fullscreen-menu:active,
+.btn-fullscreen-hud:active {
+    transform: scale(0.95);
+}
+
 .logo {
     display: flex;
     flex-direction: column;
@@ -576,6 +622,44 @@ body, html {
     color: #ffffff;
     text-shadow: 0 0 12px #ffd700;
     line-height: 1;
+}
+
+/* HUD Top Right Container & Fullscreen Button */
+.hud-top-right {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    pointer-events: auto;
+}
+
+.btn-fullscreen-hud {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(14, 20, 26, 0.92);
+    border: 1.5px solid rgba(255, 215, 0, 0.4);
+    border-radius: 8px;
+    color: #ffd700;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+    transition: all 0.2s ease;
+    height: 38px;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.btn-fullscreen-hud:hover {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: #ffd700;
+    transform: translateY(-1px);
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.4);
 }
 
 /* Minimap Container & Safe Zone Indicator */
@@ -1675,6 +1759,25 @@ body, html {
 
 /* --- Mobile Responsiveness --- */
 @media (max-width: 900px) {
+    .btn-fullscreen-menu {
+        top: 12px;
+        right: 12px;
+        padding: 7px 12px;
+        font-size: 15px;
+    }
+    .btn-fullscreen-menu .fs-text,
+    .btn-fullscreen-hud .fs-text {
+        display: none !important;
+    }
+    .btn-fullscreen-hud {
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        font-size: 18px;
+    }
+    .hud-top-right {
+        gap: 8px;
+    }
     .hud-skill-bar {
         display: none !important;
     }
