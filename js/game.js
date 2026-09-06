@@ -2013,7 +2013,7 @@ export class Game {
                 if (player && player.alive) {
                     const curWeapon = player.inventory.getCurrentWeapon();
                     const range = curWeapon ? (curWeapon.range || 60) : 40;
-                    const wpColor = parsePixiColor(curWeapon?.color || '#00e5ff');
+                    const wpColor = parsePixiColor(curWeapon?.color || '#00e5ff').color;
 
                     // Soft inner fill area
                     this.rangeIndicatorGraphics.circle(player.x, player.y, range)
