@@ -1,4 +1,4 @@
-import { CONSTANTS, distance, clamp, lerp, randomRange, randomInt, parsePixiColor } from './utils.js';
+import { CONSTANTS, distance, clamp, lerp, randomRange, randomInt, setRandomSeed, parsePixiColor } from './utils.js';
 import { GameMap } from './map.js';
 import { Player } from './player.js';
 import { Enemy } from './enemy.js';
@@ -985,12 +985,37 @@ export class Game {
         }
     }
 
+    applyWorldSeed(seed) {
+        this.roomSeed = seed;
+        this.currentGeneratedSeed = seed;
+        setRandomSeed(seed);
+        this.map.generateObstacles();
+        this.lootManager.generateLoot(CONSTANTS.LOOT_COUNT);
+        if (this.pixiApp) {
+            this.map.initPixi(this.groundLayer, this.obstacleLayer);
+            this.lootManager.initPixi(this.lootLayer);
+        }
+        setRandomSeed(null);
+    }
+
     start() {
         audio.init();
         audio.startMusic();
         audio.playGong();
 
+        // Deterministic Map & Loot Generation for Rooms
+        if (this.isRoomMode && this.roomSeed) {
+            setRandomSeed(this.roomSeed);
+            this.currentGeneratedSeed = this.roomSeed;
+        } else {
+            setRandomSeed(null);
+        }
+
         this.map.generateObstacles();
+        this.lootManager.generateLoot(CONSTANTS.LOOT_COUNT);
+
+        // Switch to unseeded random for player spawn points & combat randomness
+        setRandomSeed(null);
 
         const spawn = this.map.getRandomSpawnPoint(CONSTANTS.PLAYER_RADIUS, 0);
         this.player = new Player(spawn.x, spawn.y, true);
@@ -1017,8 +1042,6 @@ export class Game {
             }
             this.enemies.push(enemy);
         }
-
-        this.lootManager.generateLoot(CONSTANTS.LOOT_COUNT);
 
         if (this.pixiApp) {
             this.characterLayer.removeChildren();

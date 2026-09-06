@@ -1,4 +1,4 @@
-import { CONSTANTS, distance, clamp, randomRange, randomInt, parsePixiColor } from './utils.js';
+import { CONSTANTS, distance, clamp, randomRange, randomInt, randomFloat, parsePixiColor } from './utils.js';
 
 function lineIntersectsSegment(x1, y1, x2, y2, x3, y3, x4, y4) {
     const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
@@ -274,6 +274,7 @@ export class GameMap {
         this.obstacles = [];
         this.crates = [];
         this.houses = [];
+        this.brokenCrateIds = new Set();
         let idCounter = 0;
 
         // Enterable houses: four physical walls with a doorway in the south wall.
@@ -298,7 +299,7 @@ export class GameMap {
             ];
             for (let w = 0; w < wallRects.length; w++) {
                 this.obstacles.push({
-                    id: idCounter++,
+                    id: `wall_${idCounter++}`,
                     lastQuery: 0,
                     type: 'rect',
                     subtype: 'house_wall',
@@ -310,9 +311,9 @@ export class GameMap {
             // Every house contains lootable chests, reachable through the door.
             const houseCrateCount = randomInt(1, 2);
             for (let c = 0; c < houseCrateCount; c++) {
-                const isGold = Math.random() < 0.3;
+                const isGold = randomFloat() < 0.3;
                 const crate = new BreakableCrate(
-                    idCounter++,
+                    `crate_${idCounter++}`,
                     randomRange(bx + wall + 22, bx + bw - wall - 56),
                     randomRange(by + wall + 22, by + bh - wall - 56),
                     isGold ? 'gold' : 'normal'
@@ -325,11 +326,11 @@ export class GameMap {
         // Additional scattered breakable crates in wilderness (~35 crates)
         const wildernessCrateCount = 35;
         for (let w = 0; w < wildernessCrateCount; w++) {
-            const isGold = Math.random() < 0.20;
+            const isGold = randomFloat() < 0.20;
             const cx = randomRange(180, this.width - 180);
             const cy = randomRange(180, this.height - 180);
             const crate = new BreakableCrate(
-                idCounter++,
+                `crate_${idCounter++}`,
                 cx,
                 cy,
                 isGold ? 'gold' : 'normal'
@@ -342,7 +343,7 @@ export class GameMap {
         const rockCount = 65;
         for (let i = 0; i < rockCount; i++) {
             this.obstacles.push({
-                id: idCounter++,
+                id: `rock_${idCounter++}`,
                 lastQuery: 0,
                 type: 'circle',
                 subtype: 'rock',
@@ -358,7 +359,7 @@ export class GameMap {
         for (let i = 0; i < bushCount; i++) {
             const bushRadius = randomRange(38, 58);
             this.obstacles.push({
-                id: idCounter++,
+                id: `bush_${idCounter++}`,
                 lastQuery: 0,
                 type: 'circle',
                 subtype: 'bush',
@@ -366,7 +367,7 @@ export class GameMap {
                 y: randomRange(120, this.height - 120),
                 radius: bushRadius,
                 canopyRadius: bushRadius,
-                color: Math.random() < 0.55 ? '#287a3d' : '#1f6635'
+                color: randomFloat() < 0.55 ? '#287a3d' : '#1f6635'
             });
         }
 
@@ -402,10 +403,13 @@ export class GameMap {
         }
     }
 
-    destroyCrate(crate, lootManager, particles, audio) {
+    destroyCrate(crate, lootManager, particles, audio, isRemote = false) {
         if (!crate || crate.destroyed) return;
         crate.destroyed = true;
         crate.alive = false;
+        if (!this.brokenCrateIds) this.brokenCrateIds = new Set();
+        this.brokenCrateIds.add(crate.id);
+
         if (typeof crate.destroyPixi === 'function') {
             crate.destroyPixi();
         }
@@ -430,6 +434,25 @@ export class GameMap {
         }
         if (lootManager && typeof lootManager.spawnCrateLoot === 'function') {
             lootManager.spawnCrateLoot(cx, cy, crate.rarity);
+        }
+
+        if (!isRemote && typeof window !== 'undefined' && window.game && window.game.networkManager) {
+            window.game.networkManager.sendLocalAction('destroy_crate', { crateId: crate.id });
+        }
+    }
+
+    findCrateById(id) {
+        if (!this.crates) return null;
+        for (let i = 0; i < this.crates.length; i++) {
+            if (this.crates[i].id === id) return this.crates[i];
+        }
+        return null;
+    }
+
+    destroyCrateById(id, lootManager, particles, audio, isRemote = false) {
+        const crate = this.findCrateById(id);
+        if (crate && !crate.destroyed) {
+            this.destroyCrate(crate, lootManager, particles, audio, isRemote);
         }
     }
 

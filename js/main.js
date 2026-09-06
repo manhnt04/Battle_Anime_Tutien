@@ -5,6 +5,7 @@ const canvas = document.getElementById('gameCanvas');
 const minimapCanvas = document.getElementById('minimapCanvas');
 
 const game = new Game(canvas, minimapCanvas);
+window.game = game;
 if (typeof game.initRenderer === 'function') {
     await game.initRenderer();
 }

@@ -45,7 +45,11 @@ export class NetworkManager {
 
         this.disconnect();
         this.isHost = true;
-        this.roomCode = (roomCode || '6868').trim().toUpperCase();
+        this.roomCode = (roomCode || '6868').trim().toUpperCase().replace(/^VLST-/i, '');
+        if (this.game) {
+            this.game.roomSeed = this.roomCode;
+            this.game.isRoomMode = true;
+        }
         const peerId = this.getPeerRoomId(this.roomCode);
 
         try {
@@ -100,7 +104,11 @@ export class NetworkManager {
 
         this.disconnect();
         this.isHost = false;
-        this.roomCode = (roomCode || '').trim().toUpperCase();
+        this.roomCode = (roomCode || '').trim().toUpperCase().replace(/^VLST-/i, '');
+        if (this.game) {
+            this.game.roomSeed = this.roomCode;
+            this.game.isRoomMode = true;
+        }
         const hostPeerId = this.getPeerRoomId(this.roomCode);
         const myGuestId = `vlst-guest-${this.myId}`;
 
@@ -172,6 +180,15 @@ export class NetworkManager {
             if (window.ui) {
                 window.ui.addNotification(`🎉 Một hiệp khách mới đã tiến nhập thế giới võ lâm!`, 'gold');
             }
+            // Send full world state synchronization
+            const brokenCrates = (this.game && this.game.map && this.game.map.brokenCrateIds) ? Array.from(this.game.map.brokenCrateIds) : [];
+            const removedLoot = (this.game && this.game.lootManager && this.game.lootManager.removedLootIds) ? Array.from(this.game.lootManager.removedLootIds) : [];
+            conn.send({
+                type: 'init_world',
+                seed: this.roomCode,
+                brokenCrates,
+                removedLoot
+            });
         });
 
         conn.on('data', (data) => {
@@ -228,6 +245,25 @@ export class NetworkManager {
      */
     handleDataFromHost(data) {
         if (!data || !data.type) return;
+
+        if (data.type === 'init_world') {
+            if (data.seed && this.game) {
+                if (this.game.currentGeneratedSeed !== data.seed) {
+                    this.game.applyWorldSeed(data.seed);
+                }
+                if (Array.isArray(data.brokenCrates) && this.game.map) {
+                    for (const crateId of data.brokenCrates) {
+                        this.game.map.destroyCrateById(crateId, this.game.lootManager, this.game.particles, null, true);
+                    }
+                }
+                if (Array.isArray(data.removedLoot) && this.game.lootManager) {
+                    for (const lootId of data.removedLoot) {
+                        this.game.lootManager.removeItemById(lootId, true);
+                    }
+                }
+            }
+            return;
+        }
 
         if (data.type === 'state_sync') {
             // Update host's avatar
@@ -300,6 +336,31 @@ export class NetworkManager {
      */
     executeRemoteAction(data) {
         if (!this.game) return;
+
+        // Synchronize destroyed crates across all players
+        if (data.action === 'destroy_crate') {
+            if (this.game.map) {
+                this.game.map.destroyCrateById(data.crateId, this.game.lootManager, this.game.particles, null, true);
+            }
+            return;
+        }
+
+        // Synchronize picked up loot across all players
+        if (data.action === 'pickup_loot') {
+            if (this.game.lootManager) {
+                this.game.lootManager.removeItemById(data.lootId, true);
+            }
+            return;
+        }
+
+        // Synchronize dropped/spawned weapons across all players
+        if (data.action === 'spawn_loot') {
+            if (this.game.lootManager) {
+                this.game.lootManager.spawnWeapon(data.x, data.y, data.weaponName || data.rawKey, data.lootId, true);
+            }
+            return;
+        }
+
         const rp = this.game.remotePlayers ? this.game.remotePlayers.get(data.id) : null;
         if (!rp) return;
 

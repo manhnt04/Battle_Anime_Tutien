@@ -29,12 +29,43 @@ export function lerp(a, b, t) {
     return a + (b - a) * t;
 }
 
+// Mulberry32 Deterministic Seeded PRNG
+let currentSeed = 123456789;
+
+export function setRandomSeed(seed) {
+    if (seed === null || seed === undefined) {
+        currentSeed = (Date.now() ^ (Math.random() * 0xFFFFFFFF)) >>> 0;
+        return;
+    }
+    if (typeof seed === 'string') {
+        const clean = seed.toString().trim().toUpperCase().replace(/^VLST-/i, '');
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < clean.length; i++) {
+            h = Math.imul(h ^ clean.charCodeAt(i), 16777619);
+        }
+        currentSeed = h >>> 0;
+    } else if (typeof seed === 'number') {
+        currentSeed = (seed >>> 0) || 123456789;
+    }
+}
+
+export function seededRandom() {
+    let t = (currentSeed += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+export function randomFloat(min = 0, max = 1) {
+    return seededRandom() * (max - min) + min;
+}
+
 export function randomRange(min, max) {
-    return Math.random() * (max - min) + min;
+    return seededRandom() * (max - min) + min;
 }
 
 export function randomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    return Math.floor(seededRandom() * (max - min + 1)) + min;
 }
 
 export const ITEMS = {

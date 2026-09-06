@@ -118,6 +118,7 @@ export class UI {
 
                 this.game.isRoomMode = true;
                 this.game.isRoomGuest = false;
+                this.game.roomSeed = activeRoomCode;
                 this.game.customEnemyCount = botCount;
                 this.game.customDifficulty = 'normal';
 
@@ -157,6 +158,7 @@ export class UI {
 
                 this.game.isRoomMode = true;
                 this.game.isRoomGuest = true;
+                this.game.roomSeed = joinCode;
                 this.game.customEnemyCount = 0; // Guest uses pure multiplayer sync without local bot mismatch
 
                 if (this.game.networkManager) {
